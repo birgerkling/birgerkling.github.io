@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BURGERBLOX</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(ellipse at top, #35316d, #14132a 62%);
+      color: #fff3cf;
+      font-family: system-ui, sans-serif;
+    }
+    main { width: min(960px, 100% - 36px); margin: auto; padding: clamp(48px, 11vh, 130px) 0 64px; }
+    h1 { margin: 0 0 42px; text-align: center; font-size: clamp(36px, 9vw, 100px); font-weight: 1000; letter-spacing: -.055em; text-shadow: 0 .08em #a24922; }
+    nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+    a {
+      display: block;
+      overflow: hidden;
+      border: 2px solid #ffffff42;
+      border-radius: 24px;
+      background: #23213c;
+      color: inherit;
+      text-decoration: none;
+      box-shadow: 0 12px 32px #0005;
+    }
+    a:hover, a:focus-visible { border-color: #ffe2a3; }
+    a:focus-visible { outline: 3px solid #ffe2a3; outline-offset: 4px; }
+    img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: contain; padding: 12px; }
+    .snack img { background: radial-gradient(ellipse, #a75623, #472837); }
+    .garden img { background: radial-gradient(ellipse, #486442, #26333a); }
+    .label { display: flex; justify-content: space-between; gap: 8px; padding: 17px 20px; font-size: clamp(19px, 3vw, 30px); font-weight: 800; }
+    @media (max-width: 550px) { nav { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>BURGERBLOX</h1>
+    <nav aria-label="Välj spel">
+      <a class="snack" href="https://birgerkling.github.io/snackdown/">
+        <img src="https://birgerkling.github.io/snackdown/assets/gaming-button-masher-toast.webp" alt="">
+        <span class="label">Snackdown <span aria-hidden="true">→</span></span>
+      </a>
+      <a class="garden" href="./garden-defence.html">
+        <img src="./garden-titanImage.png" alt="">
+        <span class="label">Garden Defence <span aria-hidden="true">→</span></span>
+      </a>
+    </nav>
+  </main>
+</body>
+</html>
