@@ -9,7 +9,7 @@ const origins = new Set([
 export default {
   fetch(request, env) {
     const { pathname } = new URL(request.url);
-    if (pathname === '/party-health') return new Response('Garden Defence party v1');
+    if (pathname === '/party-health') return new Response('Garden Defence party v1 · four-letter room codes');
     if (pathname === '/health') return new Response('Garden Defence lobby online');
     if (pathname !== '/lobby') return new Response('Not found', { status: 404 });
     if (!origins.has(request.headers.get('Origin'))) {
