@@ -12,7 +12,7 @@ const origins = new Set([
 export default {
   fetch(request, env) {
     const { pathname } = new URL(request.url);
-    if (pathname === '/party-health') return new Response('Garden Defence party v1 · equal party controls');
+    if (pathname === '/party-health') return new Response('Garden Defence party v1 · Jeff available');
     if (pathname === '/health') return new Response('Garden Defence lobby online');
     if (pathname !== '/lobby') return new Response('Not found', { status: 404 });
     if (!origins.has(request.headers.get('Origin'))) {
@@ -148,7 +148,7 @@ export class GardenLobby extends DurableObject {
       socket.serializeAttachment(player);
       for (const member of members.slice(1)) this.send(member, { partyState: command.state });
     } else if (player.match && members[0] !== socket && (op === 'setup' || op === 'action')) {
-      const defenderIds = ['bengan','ossy','pelle','skrutt','hannie','albus','kattis'];
+      const defenderIds = ['bengan','ossy','pelle','skrutt','hannie','albus','kattis','jeff'];
       if (op === 'setup') {
         if (!Array.isArray(command.ids) || command.ids.length > 3 ||
             !command.ids.every(id => abilityIds.includes(id)) ||
