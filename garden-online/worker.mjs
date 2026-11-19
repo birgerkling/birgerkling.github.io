@@ -102,13 +102,19 @@ export class GardenLobby extends DurableObject {
     const members = player.room ? this.members(player.room) : [];
     if (op === 'create' || op === 'join') {
       if (player.room) return;
-      const room = op === 'create' ? crypto.randomUUID().slice(0, 8).toUpperCase() : command.room;
-      if (typeof room !== 'string' || !/^[A-F0-9]{8}$/.test(room)) return;
+      let room = command.room;
+      if (op === 'create') {
+        const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        do {
+          room = Array.from(crypto.getRandomValues(new Uint32Array(4)),
+            value => alphabet[value % alphabet.length]).join('');
+        } while (this.members(room).length);
+      }
+      if (typeof room !== 'string' || !/^(?:[A-Z]{4}|[A-F0-9]{8})$/.test(room)) return;
       const peers = this.members(room);
       if (op === 'join' && (!peers.length || peers.length >= 5 || peers.some(peer => peer.deserializeAttachment().match))) {
         return this.send(socket, { partyError: 'That room is unavailable or full.' });
       }
-      if (op === 'create' && peers.length) return this.send(socket, { partyError: 'Try creating the room again.' });
       player.room = room;
       player.seat = Math.max(0, ...peers.map(peer => peer.deserializeAttachment().seat)) + 1;
       socket.serializeAttachment(player);
