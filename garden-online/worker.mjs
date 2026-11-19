@@ -30,7 +30,7 @@ export class GardenLobby extends DurableObject {
     const [client, server] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ id: crypto.randomUUID(), x: 500, y: 440, updated: 0 });
-    server.send(JSON.stringify({ self: server.deserializeAttachment().id }));
+    server.send(JSON.stringify({ self: server.deserializeAttachment().id, parties: true }));
     this.broadcast();
     return new Response(null, { status: 101, webSocket: client });
   }
