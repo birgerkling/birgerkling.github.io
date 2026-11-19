@@ -1,0 +1,11 @@
+name = "garden-defence-online"
+main = "worker.mjs"
+compatibility_date = "2026-11-19"
+
+[[durable_objects.bindings]]
+name = "LOBBY"
+class_name = "GardenLobby"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GardenLobby"]
