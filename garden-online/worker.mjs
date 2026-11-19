@@ -12,7 +12,7 @@ const origins = new Set([
 export default {
   fetch(request, env) {
     const { pathname } = new URL(request.url);
-    if (pathname === '/party-health') return new Response('Garden Defence party v1 · personal abilities');
+    if (pathname === '/party-health') return new Response('Garden Defence party v1 · equal party controls');
     if (pathname === '/health') return new Response('Garden Defence lobby online');
     if (pathname !== '/lobby') return new Response('Not found', { status: 404 });
     if (!origins.has(request.headers.get('Origin'))) {
@@ -33,7 +33,7 @@ export class GardenLobby extends DurableObject {
     const [client, server] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ id: crypto.randomUUID(), x: 500, y: 440, updated: 0 });
-    server.send(JSON.stringify({ self: server.deserializeAttachment().id, parties: true, partyWallets: true }));
+    server.send(JSON.stringify({ self: server.deserializeAttachment().id, parties: true, partyWallets: true, equalParty: true }));
     this.broadcast();
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -133,13 +133,13 @@ export class GardenLobby extends DurableObject {
       socket.serializeAttachment(player);
       this.send(socket, { partyEnd: 'You left the party.' });
       this.broadcast();
-    } else if (op === 'start' && members[0] === socket && !player.match &&
+    } else if (op === 'start' && members.length && !player.match &&
         [10, 20, 30, 40, 50, 100].includes(command.goal)) {
       for (const member of members) {
         const peer = member.deserializeAttachment();
         peer.match = true;
         member.serializeAttachment(peer);
-        this.send(member, { partyStart: { goal: command.goal, count: members.length, host: player.id } });
+        this.send(member, { partyStart: { goal: command.goal, count: members.length, host: members[0].deserializeAttachment().id } });
       }
     } else if (op === 'state' && player.match && members[0] === socket) {
       const now = Date.now();
@@ -147,15 +147,28 @@ export class GardenLobby extends DurableObject {
       player.lastSnapshot = now;
       socket.serializeAttachment(player);
       for (const member of members.slice(1)) this.send(member, { partyState: command.state });
-    } else if (player.match && members[0] !== socket && (op === 'loadout' || op === 'cast')) {
-      if (op === 'loadout') {
+    } else if (player.match && members[0] !== socket && (op === 'setup' || op === 'action')) {
+      const defenderIds = ['bengan','ossy','pelle','skrutt','hannie','albus','kattis'];
+      if (op === 'setup') {
         if (!Array.isArray(command.ids) || command.ids.length > 3 ||
-            !command.ids.every(id => abilityIds.includes(id))) return;
-        this.send(members[0], { partyAbility: { op, playerId: player.id, ids: [...new Set(command.ids)] } });
-      } else if (abilityIds.includes(command.id) &&
-          Number.isFinite(command.x) && command.x >= 0 && command.x <= 1000 &&
-          Number.isFinite(command.y) && command.y >= 0 && command.y <= 650) {
-        this.send(members[0], { partyAbility: { op, playerId: player.id, id: command.id, x: command.x, y: command.y } });
+            !command.ids.every(id => abilityIds.includes(id)) ||
+            !Array.isArray(command.defenders) || !Array.isArray(command.elite)) return;
+        const defenders = defenderIds.filter(id => command.defenders.includes(id));
+        const elite = defenders.filter(id => command.elite.includes(id));
+        this.send(members[0], { partyAction: { kind: 'setup', playerId: player.id,
+          ids: [...new Set(command.ids)], defenders, elite } });
+      } else {
+        const { kind, selected, mode, x, y } = command;
+        if (kind !== 'wave' && kind !== 'auto' && kind !== 'click') return;
+        if (kind === 'click' && (!Number.isFinite(x) || x < 0 || x > 1000 ||
+            !Number.isFinite(y) || y < 0 || y > 650 ||
+            (selected !== null && ![...defenderIds,...abilityIds].includes(selected)) ||
+            ![null,'move','delete','upgrade'].includes(mode) || (!selected && !mode))) return;
+        const now = Date.now();
+        if (now - (player.lastAction || 0) < 80) return;
+        player.lastAction = now;
+        socket.serializeAttachment(player);
+        this.send(members[0], { partyAction: { kind, playerId: player.id, selected, mode, x, y } });
       }
     } else if (op === 'place' && player.match && members[0] !== socket &&
         ['bengan', 'ossy', 'pelle', 'skrutt', 'hannie', 'albus', 'kattis'].includes(command.type) &&
