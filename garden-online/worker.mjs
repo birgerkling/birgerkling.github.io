@@ -9,6 +9,7 @@ const origins = new Set([
 export default {
   fetch(request, env) {
     const { pathname } = new URL(request.url);
+    if (pathname === '/party-health') return new Response('Garden Defence party v1');
     if (pathname === '/health') return new Response('Garden Defence lobby online');
     if (pathname !== '/lobby') return new Response('Not found', { status: 404 });
     if (!origins.has(request.headers.get('Origin'))) {
@@ -35,12 +36,13 @@ export class GardenLobby extends DurableObject {
   }
 
   webSocketMessage(socket, message) {
-    if (typeof message !== 'string' || message.length > 128) return;
+    if (typeof message !== 'string' || message.length > 250000) return;
     const player = socket.deserializeAttachment();
-    const now = Date.now();
-    if (now - player.updated < 200) return;
     let position;
     try { position = JSON.parse(message); } catch { return; }
+    if (position?.op) return this.partyMessage(socket, player, position);
+    const now = Date.now();
+    if (now - player.updated < 200) return;
     if (!Number.isFinite(position?.x) || !Number.isFinite(position?.y)) return;
     player.x = Math.max(25, Math.min(975, position.x));
     player.y = Math.max(45, Math.min(565, position.y));
@@ -51,17 +53,111 @@ export class GardenLobby extends DurableObject {
 
   webSocketClose(socket, code) {
     if (socket.readyState !== 3) socket.close(Number.isInteger(code) && code >= 4000 && code <= 4999 ? code : 1000);
+    this.partyDisconnected(socket);
     this.broadcast(socket);
   }
 
   webSocketError(socket) {
     if (socket.readyState !== 3) socket.close(1011, 'Connection error');
+    this.partyDisconnected(socket);
     this.broadcast(socket);
+  }
+
+  members(room, excluded) {
+    return this.ctx.getWebSockets().filter(socket =>
+      socket !== excluded && socket.readyState === 1 && socket.deserializeAttachment()?.room === room)
+      .sort((a, b) => a.deserializeAttachment().seat - b.deserializeAttachment().seat);
+  }
+
+  send(socket, data) {
+    try { socket.send(JSON.stringify(data)); } catch { /* connection closed */ }
+  }
+
+  roster(room) {
+    const members = this.members(room);
+    const ids = members.map(socket => socket.deserializeAttachment().id);
+    for (const socket of members) this.send(socket, { party: { room, ids, host: ids[0] } });
+  }
+
+  partyDisconnected(socket) {
+    const player = socket.deserializeAttachment();
+    if (!player?.room) return;
+    if (player.match) {
+      for (const member of this.members(player.room, socket)) {
+        const peer = member.deserializeAttachment();
+        delete peer.match;
+        delete peer.room;
+        member.serializeAttachment(peer);
+        this.send(member, { partyEnd: 'A player disconnected.' });
+      }
+    } else {
+      const members = this.members(player.room, socket);
+      const ids = members.map(member => member.deserializeAttachment().id);
+      for (const member of members) this.send(member, { party: { room: player.room, ids, host: ids[0] } });
+    }
+  }
+
+  partyMessage(socket, player, command) {
+    const { op } = command;
+    const members = player.room ? this.members(player.room) : [];
+    if (op === 'create' || op === 'join') {
+      if (player.room) return;
+      const room = op === 'create' ? crypto.randomUUID().slice(0, 8).toUpperCase() : command.room;
+      if (typeof room !== 'string' || !/^[A-F0-9]{8}$/.test(room)) return;
+      const peers = this.members(room);
+      if (op === 'join' && (!peers.length || peers.length >= 5 || peers.some(peer => peer.deserializeAttachment().match))) {
+        return this.send(socket, { partyError: 'That room is unavailable or full.' });
+      }
+      if (op === 'create' && peers.length) return this.send(socket, { partyError: 'Try creating the room again.' });
+      player.room = room;
+      player.seat = Math.max(0, ...peers.map(peer => peer.deserializeAttachment().seat)) + 1;
+      socket.serializeAttachment(player);
+      this.roster(room);
+      this.broadcast();
+    } else if (op === 'leave' && player.room) {
+      this.partyDisconnected(socket);
+      delete player.match;
+      delete player.room;
+      socket.serializeAttachment(player);
+      this.send(socket, { partyEnd: 'You left the party.' });
+      this.broadcast();
+    } else if (op === 'start' && members[0] === socket && !player.match &&
+        [10, 20, 30, 40, 50, 100].includes(command.goal)) {
+      for (const member of members) {
+        const peer = member.deserializeAttachment();
+        peer.match = true;
+        member.serializeAttachment(peer);
+        this.send(member, { partyStart: { goal: command.goal, count: members.length, host: player.id } });
+      }
+    } else if (op === 'state' && player.match && members[0] === socket) {
+      const now = Date.now();
+      if (now - (player.lastSnapshot || 0) < 80) return;
+      player.lastSnapshot = now;
+      socket.serializeAttachment(player);
+      for (const member of members.slice(1)) this.send(member, { partyState: command.state });
+    } else if (op === 'place' && player.match && members[0] !== socket &&
+        ['bengan', 'ossy', 'pelle', 'skrutt', 'hannie', 'albus', 'kattis'].includes(command.type) &&
+        Number.isFinite(command.x) && Number.isFinite(command.y)) {
+      const now = Date.now();
+      if (now - (player.lastPlace || 0) < 150) return;
+      player.lastPlace = now;
+      socket.serializeAttachment(player);
+      this.send(members[0], { partyPlace: { type: command.type, x: command.x, y: command.y } });
+    } else if (op === 'finish' && player.match && members[0] === socket) {
+      for (const member of members) {
+        const peer = member.deserializeAttachment();
+        delete peer.match;
+        delete peer.room;
+        member.serializeAttachment(peer);
+        this.send(member, { partyEnd: command.won === true ? 'Party won!' : 'The Garden fell.' });
+      }
+      this.broadcast();
+    }
   }
 
   broadcast(excluded) {
     const sockets = this.ctx.getWebSockets().filter(socket => socket !== excluded && socket.readyState === 1);
-    const players = sockets.map(socket => {
+    const players = sockets.filter(socket => !socket.deserializeAttachment().room).map(socket => {
       const { id, x, y } = socket.deserializeAttachment();
       return { id, x, y };
     });
