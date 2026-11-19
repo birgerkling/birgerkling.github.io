@@ -1,3 +1,4 @@
+# Cloudflare Workers Builds deploys this project from the garden-online branch.
 name = "garden-defence-online"
 main = "worker.mjs"
 compatibility_date = "2026-11-19"
