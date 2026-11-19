@@ -18,7 +18,7 @@ const abilityDefs={brainfreeze:{name:'🥤 Soda Brainfreeze',max:2,cd:15,scope:'
 let cucumberOwned=false,juiceOwned=false;try{cucumberOwned=localStorage.getItem('garden-defense.cucumber-owned')==='1';juiceOwned=localStorage.getItem('garden-defense.juice-owned')==='1'}catch{}
 let equipped=['corn'],abilityState={},puddles=[];
 function resetAbilities(){puddles=[];for(const [id,def]of Object.entries(abilityDefs))abilityState[id]={uses:def.max,cd:0};}
-function ownsAbility(id){return id==='corn'||!!lobbyProfile?.abilities?.includes(id);}
+function ownsAbility(id){if(actingGuest)return Object.hasOwn(actingGuest.abilities,id);return id==='corn'||!!lobbyProfile?.abilities?.includes(id);}
 function abilityUI(){const slots=$('abilitySlots'),signature=equipped.join('|');if(slots.dataset.signature!==signature){slots.dataset.signature=signature;slots.innerHTML=equipped.map((id,i)=>'<button id="ability-'+id+'"><strong>['+(i+1)+'] '+abilityDefs[id].name+'</strong><small>'+abilityDefs[id].desc+'</small><small id="status-'+id+'"></small></button>').join('');for(const id of equipped)$('ability-'+id).onclick=()=>select(id);}for(const id of equipped){const state=abilityState[id];$('status-'+id).textContent=state.uses+'/'+abilityDefs[id].max+' uses/'+(abilityDefs[id].scope==='match'?'match':'wave')+' · '+(state.cd>0?Math.ceil(state.cd)+'s cooldown':'Ready');$('ability-'+id).classList.toggle('selected',selected===id);}}
 function canCast(id){return !over&&!paused&&active&&ownsAbility(id)&&equipped.includes(id)&&abilityState[id].uses>0&&abilityState[id].cd<=0;}
 function castAbility(id,x,y){if(!canCast(id)){selected=null;$('hint').textContent='Ability not ready, no uses left, or the wave has not started.';ui();return}if(id==='brainfreeze'){const enemy=enemies.filter(e=>!e.dead&&enemyDistance(e,x,y)<45).sort((a,b)=>enemyDistance(a,x,y)-enemyDistance(b,x,y))[0];if(!enemy){$('hint').textContent='Click an enemy to freeze it.';return}enemy.freezeRemaining=5;}else if(id==='juice'){const defender=towers.find(t=>Math.hypot(t.x-x,t.y-y)<45);if(!defender){$('hint').textContent='Click one of your defenders to give them juice.';return}defender.buff=4;}else if(id==='corn')effects.push({x,y,age:0,hits:0});else puddles.push({x,y,remaining:5});abilityState[id].uses--;abilityState[id].cd=abilityDefs[id].cd;chickSay(id==='corn'?'cornUsed':id==='cucumber'?'cucumberUsed':id==='brainfreeze'?'freezeUsed':'juiceUsed',{},75,5,1);selected=null;$('hint').textContent=abilityDefs[id].name+' activated!';ui();}
@@ -100,7 +100,7 @@ function defenderRange(t){return (t.type==='albus'?85:t.type==='kattis'?(t.elite
 function defenderDamage(t,base,buffed){return base*Math.pow(1.2,(t.level||1)-1)+(buffed?5:0);}
 function upgradeDefender(t){const level=t.level||1;if(level>=4){$('hint').textContent=t.type.toUpperCase()+' is already at max level 4!';return false}const cost=[100,400,800][level-1];if(money<cost){$('hint').textContent='Upgrade to level '+(level+1)+' costs '+cost+'G.';return false}money-=cost;t.level=level+1;chickSay(t.level===4?'maxlevel':'upgrade',{name:t.type.toUpperCase()},70,5,1);$('hint').textContent=t.type.toUpperCase()+' is now level '+t.level+'! +20% damage and range.';saveMatch();return true;}
 let autoWave=false,autoTimer=0,editMode=null,movingDefender=null;
-let partyMatch=null;
+let partyMatch=null, actingGuest=null;
 function awardGold(amount){
   money+=amount;
   if(partyMatch?.host)for(const id of Object.keys(partyMatch.guestGold))partyMatch.guestGold[id]+=amount;
@@ -111,13 +111,20 @@ function reset(){autoWave=false;autoTimer=0;editMode=null;movingDefender=null;eq
 function ui(){if(typeof lobbyProfile!=='undefined'&&lobbyProfile?.collection)collectionUI();if(typeof lobbyProfile!=='undefined'){for(const id of Object.keys(defenderPrices))$(id).hidden=lobbyProfile.scene==='battle'&&!lobbyProfile.unlocked.includes(id);}chickAdvice();$('autoWave').textContent='[Q] Auto Wave: '+(autoWave?'ON':'OFF')+(autoWave&&autoTimer>0?' · '+Math.ceil(autoTimer)+'s':'');$('upgradeDefender').classList.toggle('selected',editMode==='upgrade');$('moveDefender').classList.toggle('selected',editMode==='move');$('moveDefender').disabled=active;$('moveDefender').textContent=active?'Move · between waves only':'Move defender';$('deleteDefender').classList.toggle('selected',editMode==='delete');$('hp').textContent='🌱 Garden '+hp+'/100';$('cash').textContent='🪙 '+money;$('wave').textContent='⚑ Wave '+wave;abilityUI();$('next').textContent=over?'GARDEN LOST — RESTART':active?'WAVE '+wave+' IN PROGRESS':'▶ START WAVE '+(wave+1);for(const id of ['bengan','ossy','pelle','skrutt','hannie','albus','kattis'])$(id).classList.toggle('selected',selected===id)}
 function select(id){if(over)return;editMode=null;movingDefender=null;if(abilityDefs[id]&&!canCast(id)){$('hint').textContent='Start a wave, wait for the cooldown and check your remaining uses.';return}selected=selected===id?null:id;$('hint').textContent=abilityDefs[selected]?(selected==='juice'?'Click the defender who should receive juice.':selected==='brainfreeze'?'Click an enemy to freeze it.':'Click the area where you want to use the ability.'):selected?'Place '+selected.toUpperCase()+' on empty grass.':'Select a defender or an ability.';ui()}
 for(const id of ['bengan','ossy','pelle','skrutt','hannie','albus','kattis'])$(id).onclick=()=>select(id);
-$('autoWave').onclick=()=>{if(over)return;autoWave=!autoWave;autoTimer=autoWave&&!active?2:0;ui()};
+$('autoWave').onclick=()=>{if(partyMatch&&!partyMatch.host){partySend({op:'action',kind:'auto'});return;}if(over)return;autoWave=!autoWave;autoTimer=autoWave&&!active?2:0;ui()};
 for(const [id,mode]of [['moveDefender','move'],['deleteDefender','delete'],['upgradeDefender','upgrade']])$(id).onclick=()=>{if(over||paused)return;if(mode==='move'&&active){$('hint').textContent='You can only move defenders between waves.';return;}editMode=editMode===mode?null:mode;selected=null;movingDefender=null;$('hint').textContent=editMode==='upgrade'?'Click a defender to upgrade. Level 2: 100G · Level 3: 400G · Level 4: 800G.':editMode==='move'?'Select a defender, then click empty grass. Escape cancels.':editMode==='delete'?'Click a defender to sell: half the base price, rounded to the nearest 5G. Levels add no extra value.':'Editing cancelled.';ui()};
 $('reset').onclick=reset;$('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'▶ Resume':'Ⅱ Pause'};
-$('next').onclick=()=>{if(partyMatch&&!partyMatch.host)return;if(over){reset();return}if(active||paused)return;wave++;autoTimer=0;selected=null;if(editMode==='move'){editMode=null;movingDefender=null;}for(const [id,def]of Object.entries(abilityDefs))if(def.scope!=='match')abilityState[id].uses=def.max;active=true;queue=wave===100?['beetletitan']:wave===20?[]:Array.from({length:waveSize(wave)},(_,i)=>wave>31&&i%4===1?'bee':wave>=21&&i%5===3?'millipede':wave>10&&i%4===0?'rat':wave>=3&&i%4===2?'spider':wave>=2&&i%3===1?'beetle':'snail');if(wave===10)queue.unshift('scorpion');if(wave===20)queue.unshift('ratking');if(wave===30)queue.unshift('centipede');if(wave===40)queue.unshift('queenbee');if(wave===50)queue.unshift('megasnail');spawn=0;$('hint').textContent=wave===100?'BEETLE TITAN SOLO! '+enemyMaxHp('beetletitan').toLocaleString('en-US')+' HP · shields block half damage for 5s after every 10s unshielded.':wave===50?'MEGA SNAIL! '+enemyMaxHp('megasnail').toLocaleString('en-US')+' HP · invulnerable shell and healing!':wave===40?'QUEEN BEE! '+enemyMaxHp('queenbee').toLocaleString('en-US')+' HP · destroy the hives!':wave===30?'CENTIPEDE! '+enemyMaxHp('centipede').toLocaleString('en-US')+' HP · ten segments · pushes defenders!':wave===20?'RAT KING! '+enemyMaxHp('ratking').toLocaleString('en-US')+' HP · rats every second · watch the jump!':wave===10?'SCORPION KING! '+enemyMaxHp('scorpion').toLocaleString('en-US')+' HP · stuns the nearest defender every 10 seconds.':'Incoming from the west! Protect the Garden.';ui()};
+$('next').onclick=()=>{if(partyMatch&&!partyMatch.host){partySend({op:'action',kind:'wave'});return;}if(over){reset();return}if(active||paused)return;wave++;autoTimer=0;selected=null;if(editMode==='move'){editMode=null;movingDefender=null;}for(const [id,def]of Object.entries(abilityDefs))if(def.scope!=='match'){abilityState[id].uses=def.max;for(const guest of Object.values(partyMatch?.guests||{}))if(guest.abilities[id])guest.abilities[id].uses=def.max;}active=true;queue=wave===100?['beetletitan']:wave===20?[]:Array.from({length:waveSize(wave)},(_,i)=>wave>31&&i%4===1?'bee':wave>=21&&i%5===3?'millipede':wave>10&&i%4===0?'rat':wave>=3&&i%4===2?'spider':wave>=2&&i%3===1?'beetle':'snail');if(wave===10)queue.unshift('scorpion');if(wave===20)queue.unshift('ratking');if(wave===30)queue.unshift('centipede');if(wave===40)queue.unshift('queenbee');if(wave===50)queue.unshift('megasnail');spawn=0;$('hint').textContent=wave===100?'BEETLE TITAN SOLO! '+enemyMaxHp('beetletitan').toLocaleString('en-US')+' HP · shields block half damage for 5s after every 10s unshielded.':wave===50?'MEGA SNAIL! '+enemyMaxHp('megasnail').toLocaleString('en-US')+' HP · invulnerable shell and healing!':wave===40?'QUEEN BEE! '+enemyMaxHp('queenbee').toLocaleString('en-US')+' HP · destroy the hives!':wave===30?'CENTIPEDE! '+enemyMaxHp('centipede').toLocaleString('en-US')+' HP · ten segments · pushes defenders!':wave===20?'RAT KING! '+enemyMaxHp('ratking').toLocaleString('en-US')+' HP · rats every second · watch the jump!':wave===10?'SCORPION KING! '+enemyMaxHp('scorpion').toLocaleString('en-US')+' HP · stuns the nearest defender every 10 seconds.':'Incoming from the west! Protect the Garden.';ui()};
 function distanceSegment(x,y,a,b){let dx=b[0]-a[0],dy=b[1]-a[1];if(dx===0&&dy===0)return Math.hypot(x-a[0],y-a[1]);let t=Math.max(0,Math.min(1,((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy)));return Math.hypot(x-a[0]-t*dx,y-a[1]-t*dy)}
 canvas.onpointermove=e=>{const r=canvas.getBoundingClientRect();placementPointer={x:(e.clientX-r.left)*1000/r.width,y:(e.clientY-r.top)*650/r.height};};canvas.onpointerleave=()=>placementPointer=null;
-canvas.onpointerdown=e=>{if(over||paused)return;const r=canvas.getBoundingClientRect(),x=(e.clientX-r.left)*1000/r.width,y=(e.clientY-r.top)*650/r.height;if(partyMatch&&!partyMatch.host){if(selected===lobbyProfile.starter){if(money<defenderPrices[selected]){$('hint').textContent='You need more Gold!';return;}partySend({op:'place',type:selected,x,y});selected=null;}else target={x,y};return;}if(editMode==='move'&&active){editMode=null;movingDefender=null;$('hint').textContent='You can only move defenders between waves.';ui();return;}if(editMode){if(!movingDefender){const t=towers.find(t=>!t.guestOwner&&Math.hypot(t.x-x,t.y-y)<36);if(!t){$('hint').textContent='Click a defender.';return}if(editMode==='upgrade'){upgradeDefender(t);}else if(editMode==='delete'){const refund=sellValue(t);money+=refund;towers=towers.filter(d=>d!==t);editMode=null;saveMatch();$('hint').textContent=t.type.toUpperCase()+' sold for '+refund+'G.';}else{movingDefender=t;$('hint').textContent='Click empty grass for the new position.';}}else{const t=movingDefender;if(path.slice(1).some((p,i)=>distanceSegment(x,y,path[i],p)<58)||towers.some(other=>other!==t&&Math.hypot(x-other.x,y-other.y)<53)||x>880||x<28||y<30||y>620){$('hint').textContent='Choose empty grass away from the path.';return}if(t.home){$('hint').textContent='Centipede pushed this defender. You can move it after the wave.';movingDefender=null;return}t.x=x;t.y=y;t.jump=null;t.laserTarget=null;movingDefender=null;editMode=null;$('hint').textContent='Defender moved.';}ui();return;}if(abilityDefs[selected]){castAbility(selected,x,y);}else if(selected){if(lobbyProfile.scene==='battle'&&!lobbyProfile.unlocked.includes(selected)){$('hint').textContent='This defender is not unlocked.';return;}const cost=selected==='kattis'?100:selected==='albus'?200:selected==='hannie'?800:selected==='skrutt'?90:selected==='pelle'?120:selected==='bengan'?50:65;if(money<cost){$('hint').textContent='You need more Gold!';return}if(path.slice(1).some((p,i)=>distanceSegment(x,y,path[i],p)<58)||towers.some(t=>Math.hypot(x-t.x,y-t.y)<53)||x>880||x<28||y<30||y>620){$('hint').textContent='Choose empty grass away from the path and the Garden.';return}money-=cost;towers.push({x,y,type:selected,cd:0,level:1,elite:useElite(selected)});selected=null;$('hint').textContent='Defender placed!';}else target={x,y};ui()};
+canvas.onpointerdown=e=>{if(over||paused)return;const r=canvas.getBoundingClientRect(),x=(e.clientX-r.left)*1000/r.width,y=(e.clientY-r.top)*650/r.height;handleBattleClick(x,y);};
+function handleBattleClick(x,y){
+if(partyMatch&&!partyMatch.host){
+  if(selected||editMode)partySend({op:'action',kind:'click',selected,mode:editMode,x,y});
+  else target={x,y};
+  if(selected)selected=null;
+  ui();return;
+}if(editMode==='move'&&active){editMode=null;movingDefender=null;$('hint').textContent='You can only move defenders between waves.';ui();return;}if(editMode){if(!movingDefender){const t=towers.find(t=>(t.guestOwner??null)===(actingGuest?.id??null)&&Math.hypot(t.x-x,t.y-y)<36);if(!t){$('hint').textContent='Click a defender.';return}if(editMode==='upgrade'){upgradeDefender(t);}else if(editMode==='delete'){const refund=sellValue(t);money+=refund;towers=towers.filter(d=>d!==t);editMode=null;saveMatch();$('hint').textContent=t.type.toUpperCase()+' sold for '+refund+'G.';}else{movingDefender=t;$('hint').textContent='Click empty grass for the new position.';}}else{const t=movingDefender;if(path.slice(1).some((p,i)=>distanceSegment(x,y,path[i],p)<58)||towers.some(other=>other!==t&&Math.hypot(x-other.x,y-other.y)<53)||x>880||x<28||y<30||y>620){$('hint').textContent='Choose empty grass away from the path.';return}if(t.home){$('hint').textContent='Centipede pushed this defender. You can move it after the wave.';movingDefender=null;return}t.x=x;t.y=y;t.jump=null;t.laserTarget=null;movingDefender=null;editMode=null;$('hint').textContent='Defender moved.';}ui();return;}if(abilityDefs[selected]){castAbility(selected,x,y);}else if(selected){if(lobbyProfile.scene==='battle'&&!(actingGuest?.defenders??lobbyProfile.unlocked).includes(selected)){$('hint').textContent='This defender is not unlocked.';return;}const cost=selected==='kattis'?100:selected==='albus'?200:selected==='hannie'?800:selected==='skrutt'?90:selected==='pelle'?120:selected==='bengan'?50:65;if(money<cost){$('hint').textContent='You need more Gold!';return}if(path.slice(1).some((p,i)=>distanceSegment(x,y,path[i],p)<58)||towers.some(t=>Math.hypot(x-t.x,y-t.y)<53)||x>880||x<28||y<30||y>620){$('hint').textContent='Choose empty grass away from the path and the Garden.';return}money-=cost;towers.push({x,y,type:selected,cd:0,level:1,elite:useElite(selected),guestOwner:actingGuest?.id});selected=null;$('hint').textContent='Defender placed!';}else target={x,y};ui()};
 onkeydown=e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target?.tagName))return;const key=e.key.toLowerCase();if(key==='q'){e.preventDefault();if(!e.repeat)$('autoWave').onclick();return}if(key==='escape'){selected=null;editMode=null;movingDefender=null;ui();return}if(key==='e'||['1','2','3'].includes(key)){e.preventDefault();if(e.repeat||paused||over)return;if(key==='e')$('next').onclick();else{const id=equipped[Number(key)-1];if(id)select(id)}return}if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();keys[e.key.toLowerCase()]=true};onkeyup=e=>keys[e.key.toLowerCase()]=false;
 function restoreDefenders(){for(const t of towers)if(t.home){t.x=t.home.x;t.y=t.home.y;delete t.home;t.jump=null;t.laserTarget=null;}}
 function spawnOnPath(type,distance){distance=Math.max(0,distance);const p=pathPoint(distance);let remainder=distance,segment=1;while(segment<path.length-1){const length=Math.hypot(path[segment][0]-path[segment-1][0],path[segment][1]-path[segment-1][1]);if(remainder<length)break;remainder-=length;segment++;}return {...kinds[type],hp:enemyMaxHp(type),type,x:p.x,y:p.y,segment,progress:distance,slow:0,dead:false,teleportClock:2,hiveClock:20,summonClock:3};}
@@ -128,7 +135,7 @@ function enemyDistance(e,x,y){const p=enemyAim(e,x,y);return Math.hypot(p.x-x,p.
 function enemyInCone(e,t){return enemyParts(e).some(p=>{const a=Math.atan2(p.y-t.y,p.x-t.x)-t.sweepAngle;return Math.hypot(p.x-t.x,p.y-t.y)<defenderRange(t)&&Math.abs(Math.atan2(Math.sin(a),Math.cos(a)))<=(t.elite?Math.PI/2:Math.PI/4);});}
 function hit(e,d,shot=false){if(e.dead)return false;if(e.type==='megasnail'&&e.shellRemaining>0)return false;if(shot&&e.type==='bee'&&Math.random()<.2){e.missFlash=.3;return false;}e.hp-=d*(e.freezeRemaining>0?.5:1)*(e.type==='beetletitan'&&e.shieldRemaining>0?.5:1);if(e.hp<=0){e.dead=true;awardGold(e.reward)}return true;}
 function updateTitanShield(e,dt){let left=dt;while(left>1e-9){if(e.shieldRemaining>0){const step=Math.min(left,e.shieldRemaining);e.shieldRemaining-=step;left-=step;if(e.shieldRemaining<=1e-9){e.shieldRemaining=0;e.shieldClock=10;}}else{e.shieldClock=e.shieldClock??10;const step=Math.min(left,e.shieldClock);e.shieldClock-=step;left-=step;if(e.shieldClock<=1e-9){e.shieldClock=0;e.shieldRemaining=5;}}}}
-function update(dt){time+=dt;if(autoWave&&!active&&!over&&!paused){autoTimer=Math.max(0,autoTimer-dt);if(autoTimer<=0)$('next').onclick();}for(const state of Object.values(abilityState))state.cd=Math.max(0,state.cd-dt);puddles=puddles.filter(p=>p.remaining>0);cooldown=Math.max(0,cooldown-dt);if(active&&queue.length){spawn-=dt;if(spawn<=0){const bosses=['scorpion','ratking','centipede','queenbee','megasnail','beetletitan'];const batch=bosses.includes(queue[0])?1:Math.min(waveGroupSize(wave),queue.length);for(let i=0;i<batch;i++){if(i>0&&bosses.includes(queue[0]))break;const type=queue.shift();enemies.push({...kinds[type],hp:enemyMaxHp(type),type,x:path[0][0]-i*12,y:path[0][1],segment:1,slow:0,dead:false,progress:-i*12,stunClock:10,teleportClock:2,blink:0});}spawn=waveSpawnGap(wave);}}
+function update(dt){time+=dt;if(autoWave&&!active&&!over&&!paused){autoTimer=Math.max(0,autoTimer-dt);if(autoTimer<=0)$('next').onclick();}for(const states of [abilityState,...Object.values(partyMatch?.guests||{}).map(guest=>guest.abilities)])for(const state of Object.values(states))state.cd=Math.max(0,state.cd-dt);puddles=puddles.filter(p=>p.remaining>0);cooldown=Math.max(0,cooldown-dt);if(active&&queue.length){spawn-=dt;if(spawn<=0){const bosses=['scorpion','ratking','centipede','queenbee','megasnail','beetletitan'];const batch=bosses.includes(queue[0])?1:Math.min(waveGroupSize(wave),queue.length);for(let i=0;i<batch;i++){if(i>0&&bosses.includes(queue[0]))break;const type=queue.shift();enemies.push({...kinds[type],hp:enemyMaxHp(type),type,x:path[0][0]-i*12,y:path[0][1],segment:1,slow:0,dead:false,progress:-i*12,stunClock:10,teleportClock:2,blink:0});}spawn=waveSpawnGap(wave);}}
 const summoned=[];for(const e of enemies){if(e.dead)continue;if(e.type==='beetletitan')updateTitanShield(e,dt);const frozen=(e.freezeRemaining||0)>0;e.freezeRemaining=Math.max(0,(e.freezeRemaining||0)-dt);e.missFlash=Math.max(0,(e.missFlash||0)-dt);let kingStopped=false;if(e.type==='megasnail'){if(e.shellRemaining>0){kingStopped=true;const healTime=Math.min(dt,e.shellRemaining);e.hp=Math.min(enemyMaxHp('megasnail'),e.hp+1000/3*healTime);e.shellRemaining=Math.max(0,e.shellRemaining-dt);if(e.shellRemaining<=1e-9){e.shellRemaining=0;e.shellClock=15;}}else{e.shellClock=(e.shellClock??15)-dt;if(e.shellClock<=1e-9){e.shellRemaining=3;kingStopped=true;}}}if(e.type==='queenbee'){e.hiveClock=(e.hiveClock??20)-dt;while(e.hiveClock<=1e-9){e.hiveClock+=20;summoned.push(spawnOnPath('hive',(e.progress||0)-50));$('hint').textContent='Queen Bee dropped a hive!';}}else if(e.type==='hive'){e.summonClock=(e.summonClock??3)-dt;while(e.summonClock<=1e-9){e.summonClock+=3;summoned.push(spawnOnPath('bee',e.progress||0));}}
 if(e.type==='ratking'){
 e.summonClock=(e.summonClock??1)-dt;while(e.summonClock<=1e-9){e.summonClock+=1;summoned.push({...kinds.rat,hp:enemyMaxHp('rat'),type:'rat',x:path[0][0],y:path[0][1],segment:1,slow:0,dead:false,progress:0,teleportClock:2,blink:.25});}
@@ -236,7 +243,7 @@ function buyAbility(id){if(lobbyProfile.scene==='battle'||!abilityPrices[id]||ow
 function equipAbility(id){if(lobbyProfile.scene==='battle'||!ownsAbility(id))return false;const loadout=lobbyProfile.loadout;if(loadout.includes(id))lobbyProfile.loadout=loadout.filter(a=>a!==id);else{if(loadout.length>=3){$('lobbyMessage').textContent='You can equip up to 3 abilities. Unequip one first.';return false}loadout.push(id);}saveProfile();return true;}
 function initCollection(){initAbilities();if(!lobbyProfile.collection){lobbyProfile.collection={};for(const id of lobbyProfile.unlocked||[])lobbyProfile.collection[id]={normal:1,elite:0};}lobbyProfile.preferred=lobbyProfile.preferred||{};for(const id of Object.keys(shopPrices)){const c=lobbyProfile.collection[id]||{normal:0,elite:0};c.normal=Math.max(0,Math.floor(Number(c.normal)||0));c.elite=Math.max(0,Math.floor(Number(c.elite)||0));lobbyProfile.collection[id]=c;}syncCollection();}
 function syncCollection(){lobbyProfile.unlocked=Object.keys(shopPrices).filter(id=>{const c=lobbyProfile.collection[id];return c&&(c.normal>0||c.elite>0)});}
-function useElite(id){const c=lobbyProfile?.collection?.[id];return !!(c&&c.elite>0&&(c.normal===0||lobbyProfile.preferred[id]!=='normal'));}
+function useElite(id){if(actingGuest)return actingGuest.elite.includes(id);const c=lobbyProfile?.collection?.[id];return !!(c&&c.elite>0&&(c.normal===0||lobbyProfile.preferred[id]!=='normal'));}
 function buyDefender(id){if(lobbyProfile.scene==='battle'||!shopPrices[id]||!lobbyProfile.starter)return false;const cost=shopPrices[id];if(lobbyProfile.diamonds<cost){$('lobbyMessage').textContent='Not enough Diamonds. '+id.toUpperCase()+' costs '+cost+' D.';return false;}lobbyProfile.diamonds-=cost;lobbyProfile.collection[id].normal++;syncCollection();saveProfile();$('diamondCount').textContent=lobbyProfile.diamonds+' DIAMONDS';$('lobbyMessage').textContent='Bought '+id.toUpperCase()+'! You can buy more copies to merge.';return true;}
 function mergeDefender(id){if(lobbyProfile.scene==='battle'||!lobbyProfile.collection[id]||lobbyProfile.collection[id].normal<3)return false;const c=lobbyProfile.collection[id];c.normal-=3;c.elite++;lobbyProfile.preferred[id]='elite';syncCollection();saveProfile();$('lobbyMessage').textContent='MERGE COMPLETE! ELITE '+id.toUpperCase()+' unlocked!';return true;}
 function collectionUI(){if(!lobbyProfile?.collection)return;for(const id of Object.keys(shopPrices)){const c=lobbyProfile.collection[id];$('variantStatus-'+id).textContent=useElite(id)?'★ ELITE · '+eliteDescriptions[id]:'NORMAL';const toggle=$('variant-'+id);toggle.hidden=!(c.normal>0&&c.elite>0)||lobbyProfile.scene!=='battle';toggle.textContent=useElite(id)?'Switch to NORMAL '+id.toUpperCase():'Switch to ELITE '+id.toUpperCase();toggle.onclick=()=>{lobbyProfile.preferred[id]=useElite(id)?'normal':'elite';saveProfile();ui();};}}
@@ -301,7 +308,7 @@ function syncOnlineLobby(now) {
       const message = JSON.parse(event.data);
       if (message.self) {
         lobbySelf = message.self;
-        $('openParty').hidden = message.partyWallets !== true;
+        $('openParty').hidden = message.equalParty !== true;
       }
       if (Array.isArray(message.players)) lobbyPlayers = message.players;
       handlePartyMessage(message);
@@ -316,7 +323,7 @@ function syncOnlineLobby(now) {
   }
   if (lobbySocket?.readyState !== WebSocket.OPEN || now < nextLobbyPosition) return;
   if(partyMatch){
-    if(partyMatch.host&&!paused){partySend({op:'state',state:{...matchSnapshot(),guestGold:partyMatch.guestGold}});nextLobbyPosition=now+140;}
+    if(partyMatch.host&&!paused){partySend({op:'state',state:{...matchSnapshot(),guestGold:partyMatch.guestGold,guestAbilities:Object.fromEntries(Object.entries(partyMatch.guests).map(([id,guest])=>[id,guest.abilities]))}});nextLobbyPosition=now+140;}
     return;
   }
   if(partyRoomState)return;
@@ -369,7 +376,7 @@ function partySend(message) {
 
 function renderPartyRoom() {
   $('partyJoin').hidden = !!partyRoomState;
-  $('partyChoices').hidden = !partyRoomState || partyRoomState.host !== lobbySelf;
+  $('partyChoices').hidden = !partyRoomState;
   $('partyInfo').textContent = partyRoomState
     ? 'Room ' + partyRoomState.room + ' · ' + partyRoomState.ids.length + '/5 players'
     : 'Create a room or enter a friend’s code.';
@@ -413,6 +420,8 @@ function exitParty(message) {
 function applyPartyState(state) {
   hp = state.hp;
   money = state.guestGold?.[lobbySelf] ?? 150;
+  Object.assign(abilityState,state.guestAbilities?.[lobbySelf]);
+  autoWave=state.autoWave;autoTimer=state.autoTimer;
   wave = state.wave;
   active = state.active;
   time = state.time;
@@ -440,28 +449,50 @@ function handlePartyMessage(message) {
     const { count, goal, host } = message.partyStart;
     partyDialog.close();
     const guestGold = Object.fromEntries((partyRoomState?.ids || []).filter(id => id !== host).map(id => [id, 150]));
-    partyMatch = { count, host: host === lobbySelf, guestGold };
+    partyMatch = { count, host: host === lobbySelf, guestGold, guests:Object.create(null) };
     // Initialize the same map as a solo mission, without replacing a saved solo match.
     missionGoal = goal;
     lobbyProfile.scene = 'battle';
     baseReset();
-    equipped = partyMatch.host ? lobbyProfile.loadout.filter(ownsAbility).slice(0,3) : [];
+    equipped = lobbyProfile.loadout.filter(ownsAbility).slice(0,3);
+    if(!partyMatch.host)partySend({op:'setup',ids:equipped,defenders:lobbyProfile.unlocked,elite:lobbyProfile.unlocked.filter(useElite)});
     lobbyKeys = {};
     keys = {};
     showScene();
-    $('next').disabled = !partyMatch.host;
+    $('next').disabled = false;
     $('hint').textContent = 'Party · ' + count + ' players · Enemy HP ×' + count + ' · Clear wave ' + goal + '.';
   }
   if (message.partyState && partyMatch && !partyMatch.host) applyPartyState(message.partyState);
-  if (message.partyPlace && partyMatch?.host && !paused) {
-    const { type, x, y, playerId } = message.partyPlace;
-    const gold = partyMatch.guestGold[playerId];
-    const cost = type === 'bengan' ? 50 : 65;
-    if (!['bengan','ossy'].includes(type) || !Number.isFinite(gold) || gold < cost || x < 28 || x > 880 || y < 30 || y > 620 ||
-        path.slice(1).some((p,i)=>distanceSegment(x,y,path[i],p)<58) ||
-        towers.some(t=>Math.hypot(x-t.x,y-t.y)<53)) return;
-    partyMatch.guestGold[playerId] -= cost;
-    towers.push({ x, y, type, cd: 0, level: 1, elite: false, guestOwner: playerId });
+  if(message.partyAction&&partyMatch?.host)handlePartyAction(message.partyAction);
+}
+
+function handlePartyAction({playerId,kind,ids,defenders,elite,selected:choice,mode,x,y}) {
+  if(!Object.hasOwn(partyMatch.guestGold,playerId))return;
+  const guest=partyMatch.guests[playerId];
+  if(kind==='setup'&&!guest){
+    partyMatch.guests[playerId]={id:playerId,defenders,elite,ids,moving:null,
+      abilities:Object.fromEntries(ids.map(id=>[id,{uses:abilityDefs[id].max,cd:0}]))};
+    return;
+  }
+  if(!guest)return;
+  if(kind==='wave'){$('next').onclick();return;}
+  if(kind==='auto'){$('autoWave').onclick();return;}
+  if(kind!=='click'||paused||over)return;
+  const local={money,equipped,abilityState,selected,editMode,movingDefender};
+  const hint=$('hint').textContent;
+  actingGuest=guest;
+  try {
+    money=partyMatch.guestGold[playerId];
+    equipped=guest.ids;abilityState=guest.abilities;
+    selected=choice;editMode=mode;
+    movingDefender=mode==='move'&&towers.includes(guest.moving)?guest.moving:null;
+    handleBattleClick(x,y);
+    partyMatch.guestGold[playerId]=money;
+    guest.moving=movingDefender;
+  } finally {
+    ({money,equipped,abilityState,selected,editMode,movingDefender}=local);
+    actingGuest=null;
+    $('hint').textContent=hint;
     ui();
   }
 }
