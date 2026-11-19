@@ -270,7 +270,7 @@ function checkLobbyEntry(){if(lobbyProfile.scene==='battle'||!lobbyProfile.start
 function drawLobby(dt){if(lobbyProfile.scene==='battle'||!lobbyProfile.starter)return;let dx=(lobbyKeys.d||lobbyKeys.arrowright?1:0)-(lobbyKeys.a||lobbyKeys.arrowleft?1:0),dy=(lobbyKeys.s||lobbyKeys.arrowdown?1:0)-(lobbyKeys.w||lobbyKeys.arrowup?1:0);if(dx||dy){lobbyTarget=null;pendingStation=null;}else if(lobbyTarget){dx=lobbyTarget.x-lobbyHero.x;dy=lobbyTarget.y-lobbyHero.y;if(Math.hypot(dx,dy)<6){lobbyTarget=null;if(pendingStation){const station=pendingStation;pendingStation=null;if(typeof station==='number'){startMission(station);return;}openStation(station);}dx=dy=0;}}const length=Math.hypot(dx,dy);if(length){lobbyHero.x=Math.max(25,Math.min(975,lobbyHero.x+dx/length*200*dt));lobbyHero.y=Math.max(45,Math.min(565,lobbyHero.y+dy/length*200*dt));}
 if(checkLobbyEntry())return;
 lc.fillStyle='#487643';lc.fillRect(0,0,1000,600);lc.strokeStyle='#679052';lc.lineWidth=50;lc.beginPath();lc.moveTo(120,350);lc.lineTo(880,350);lc.moveTo(500,500);lc.lineTo(500,170);lc.stroke();for(let i=0;i<60;i++){lc.fillStyle=i%2?'#87ad5d':'#619349';lc.fillRect(i*173%1000,i*97%600,4,8);}lc.textAlign='center';lc.textBaseline='middle';for(const p of portals){lc.fillStyle='#1e4232';lc.beginPath();lc.roundRect(p.x-60,p.y-78,120,145,18);lc.fill();lc.strokeStyle='#f2cf69';lc.lineWidth=4;lc.stroke();lc.fillStyle='#fff1b8';lc.font='bold 15px system-ui';lc.fillText('PLAY',p.x,p.y-45);lc.font='bold 24px system-ui';lc.fillText(''+p.goal,p.x,p.y-10);lc.font='13px system-ui';lc.fillText(missionRewards[p.goal]+' DIAMONDS',p.x,p.y+28);}
-for(const station of [{x:120,name:'MERGE',color:'#a688c8'},{x:880,name:'SHOP',color:'#edbc62'}]){lc.fillStyle='#244b35';lc.fillRect(station.x-70,290,140,110);lc.fillStyle=station.color;lc.font='bold 24px system-ui';lc.fillText(station.name,station.x,340);lc.font='13px system-ui';lc.fillText('Walk in',station.x,375);}drawOtherLobbyPlayers();if(generalArt)lc.drawImage(generalArt,lobbyHero.x-43,lobbyHero.y-82,86,105);else{lc.fillStyle='#ffe16b';lc.beginPath();lc.arc(lobbyHero.x,lobbyHero.y,22,0,7);lc.fill();}lc.fillStyle='#fff2b7';lc.font='bold 12px system-ui';lc.fillText('GENERAL CHICK',lobbyHero.x,lobbyHero.y+35);}
+for(const station of [{x:120,name:'MERGE',color:'#a688c8'},{x:880,name:'SHOP',color:'#edbc62'}]){lc.fillStyle='#244b35';lc.fillRect(station.x-70,290,140,110);lc.fillStyle=station.color;lc.font='bold 24px system-ui';lc.fillText(station.name,station.x,340);lc.font='13px system-ui';lc.fillText('Walk in',station.x,375);}drawOtherLobbyPlayers();if(generalArt)lc.drawImage(generalArt,lobbyHero.x-43,lobbyHero.y-82,86,105);else{lc.fillStyle='#ffe16b';lc.beginPath();lc.arc(lobbyHero.x,lobbyHero.y,22,0,7);lc.fill();}lc.fillStyle='#fff2b7';lc.font='bold 12px system-ui';drawLobbyPlayerName(lobbySelf,lobbyHero.x,lobbyHero.y+35);}
 function drawStarterArt(){if(!characterArt)return;for(const [id,start,fraction]of [['starterBengan',0,.6],['starterOssy',.6,.4]]){const c=$(id),context=c.getContext('2d'),sw=characterArt.width*fraction,height=240,width=height*sw/characterArt.height;context.clearRect(0,0,c.width,c.height);context.drawImage(characterArt,characterArt.width*start,0,sw,characterArt.height,(c.width-width)/2,10,width,height);}}
 const oldPetLoad=fixedPetImage.onload;fixedPetImage.onload=()=>{oldPetLoad?.();drawStarterArt();};drawStarterArt();
 $('lobbyReset').onclick=()=>{if(!confirm('Reset all progression, Diamonds and your starter choice? This cannot be undone.'))return;for(const key of [LOBBY_KEY,SAVE_KEY,'garden-defense.cucumber-owned','garden-defense.juice-owned'])try{localStorage.removeItem(key)}catch{}lobbyProfile={schema:1,starter:null,diamonds:0,unlocked:[],scene:'starter',missionGoal:10,wins:{}};cucumberOwned=false;juiceOwned=false;initCollection();baseReset();saveProfile();showScene();};$('resetProgression').onclick=$('lobbyReset').onclick;
@@ -327,6 +327,21 @@ function syncOnlineLobby(now) {
   nextLobbyPosition = now + 250;
 }
 
+const lobbyPlayerNames = ["General Bacon","Kapten Potatis","Doktor Morot","Major Pruttkudde","Coolaste tjejen i stan","Kladdkakan","Spöket"];
+
+function lobbyPlayerName(id) {
+  if (!id) return lobbyPlayerNames[0];
+  const hash = Array.from(id).reduce((value, character) =>
+    (Math.imul(value, 31) + character.charCodeAt(0)) >>> 0, 0);
+  return lobbyPlayerNames[hash % lobbyPlayerNames.length];
+}
+
+function drawLobbyPlayerName(id, x, y) {
+  const name = lobbyPlayerName(id);
+  const padding = lc.measureText(name).width / 2 + 4;
+  lc.fillText(name, Math.max(padding, Math.min(lobbyCanvas.width - padding, x)), y);
+}
+
 function drawOtherLobbyPlayers() {
   for (const player of lobbyPlayers) {
     if (player.id === lobbySelf) continue;
@@ -339,7 +354,7 @@ function drawOtherLobbyPlayers() {
     }
     lc.fillStyle = '#c9f4ff';
     lc.font = 'bold 12px system-ui';
-    lc.fillText('PLAYER ' + player.id.slice(0, 4).toUpperCase(), player.x, player.y + 30);
+    drawLobbyPlayerName(player.id, player.x, player.y + 30);
   }
 }
 
