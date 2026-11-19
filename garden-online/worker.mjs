@@ -30,7 +30,7 @@ export class GardenLobby extends DurableObject {
     const [client, server] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ id: crypto.randomUUID(), x: 500, y: 440, updated: 0 });
-    server.send(JSON.stringify({ self: server.deserializeAttachment().id, parties: true }));
+    server.send(JSON.stringify({ self: server.deserializeAttachment().id, parties: true, partyWallets: true }));
     this.broadcast();
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -142,7 +142,7 @@ export class GardenLobby extends DurableObject {
       if (now - (player.lastPlace || 0) < 150) return;
       player.lastPlace = now;
       socket.serializeAttachment(player);
-      this.send(members[0], { partyPlace: { type: command.type, x: command.x, y: command.y } });
+      this.send(members[0], { partyPlace: { playerId: player.id, type: command.type, x: command.x, y: command.y } });
     } else if (op === 'finish' && player.match && members[0] === socket) {
       for (const member of members) {
         const peer = member.deserializeAttachment();
