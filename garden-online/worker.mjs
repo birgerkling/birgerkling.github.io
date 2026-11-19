@@ -1,5 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 
+const roomCodes = ['bajs', 'kiss', 'prutt', 'fis', 'rumpa'];
+
 const origins = new Set([
   'https://www.burgerblox.se',
   'https://burgerblox.se',
@@ -9,7 +11,7 @@ const origins = new Set([
 export default {
   fetch(request, env) {
     const { pathname } = new URL(request.url);
-    if (pathname === '/party-health') return new Response('Garden Defence party v1 · four-letter room codes');
+    if (pathname === '/party-health') return new Response('Garden Defence party v1 · word room codes');
     if (pathname === '/health') return new Response('Garden Defence lobby online');
     if (pathname !== '/lobby') return new Response('Not found', { status: 404 });
     if (!origins.has(request.headers.get('Origin'))) {
@@ -102,15 +104,18 @@ export class GardenLobby extends DurableObject {
     const members = player.room ? this.members(player.room) : [];
     if (op === 'create' || op === 'join') {
       if (player.room) return;
-      let room = command.room;
+      let room;
       if (op === 'create') {
-        const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-        do {
-          room = Array.from(crypto.getRandomValues(new Uint32Array(4)),
-            value => alphabet[value % alphabet.length]).join('');
-        } while (this.members(room).length);
+        const available = roomCodes.filter(code => !this.members(code).length);
+        if (!available.length) return this.send(socket, { partyError: 'All five Party rooms are in use. Try again later.' });
+        room = available[Math.floor(Math.random() * available.length)];
+      } else {
+        if (typeof command.room !== 'string') return;
+        const code = command.room.trim().toLowerCase();
+        if (roomCodes.includes(code) && this.members(code).length) room = code;
+        else if (/^(?:[a-z]{4}|[a-f0-9]{8})$/.test(code)) room = code.toUpperCase();
+        else return this.send(socket, { partyError: 'That room is unavailable.' });
       }
-      if (typeof room !== 'string' || !/^(?:[A-Z]{4}|[A-F0-9]{8})$/.test(room)) return;
       const peers = this.members(room);
       if (op === 'join' && (!peers.length || peers.length >= 5 || peers.some(peer => peer.deserializeAttachment().match))) {
         return this.send(socket, { partyError: 'That room is unavailable or full.' });
