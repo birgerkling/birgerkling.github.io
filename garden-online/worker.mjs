@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 
+const abilityIds = ['corn', 'cucumber', 'juice', 'brainfreeze'];
 const roomCodes = ['bajs', 'kiss', 'prutt', 'fis', 'rumpa'];
 
 const origins = new Set([
@@ -11,7 +12,7 @@ const origins = new Set([
 export default {
   fetch(request, env) {
     const { pathname } = new URL(request.url);
-    if (pathname === '/party-health') return new Response('Garden Defence party v1 · word room codes');
+    if (pathname === '/party-health') return new Response('Garden Defence party v1 · personal abilities');
     if (pathname === '/health') return new Response('Garden Defence lobby online');
     if (pathname !== '/lobby') return new Response('Not found', { status: 404 });
     if (!origins.has(request.headers.get('Origin'))) {
@@ -146,6 +147,16 @@ export class GardenLobby extends DurableObject {
       player.lastSnapshot = now;
       socket.serializeAttachment(player);
       for (const member of members.slice(1)) this.send(member, { partyState: command.state });
+    } else if (player.match && members[0] !== socket && (op === 'loadout' || op === 'cast')) {
+      if (op === 'loadout') {
+        if (!Array.isArray(command.ids) || command.ids.length > 3 ||
+            !command.ids.every(id => abilityIds.includes(id))) return;
+        this.send(members[0], { partyAbility: { op, playerId: player.id, ids: [...new Set(command.ids)] } });
+      } else if (abilityIds.includes(command.id) &&
+          Number.isFinite(command.x) && command.x >= 0 && command.x <= 1000 &&
+          Number.isFinite(command.y) && command.y >= 0 && command.y <= 650) {
+        this.send(members[0], { partyAbility: { op, playerId: player.id, id: command.id, x: command.x, y: command.y } });
+      }
     } else if (op === 'place' && player.match && members[0] !== socket &&
         ['bengan', 'ossy', 'pelle', 'skrutt', 'hannie', 'albus', 'kattis'].includes(command.type) &&
         Number.isFinite(command.x) && Number.isFinite(command.y)) {
