@@ -366,9 +366,9 @@ function sendRoomAction(command) {
 }
 $('partyCreate').onclick = () => sendRoomAction({ op: 'create' });
 $('partyJoinButton').onclick = () => {
-  const room = $('partyCode').value.trim().toUpperCase();
-  if (!/^(?:[A-Z]{4}|[A-F0-9]{8})$/.test(room)) {
-    $('partyInfo').textContent = 'Enter the room code, for example MAPE.';
+  const room = $('partyCode').value.trim().toLowerCase();
+  if (!/^(?:bajs|kiss|prutt|fis|rumpa|[a-z]{4}|[a-f0-9]{8})$/.test(room)) {
+    $('partyInfo').textContent = 'Enter the room code, for example prutt.';
     return;
   }
   sendRoomAction({ op: 'join', room });
