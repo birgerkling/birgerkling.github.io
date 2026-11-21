@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="sv">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>OBBY.EXE</title>
 <style>
 * { box-sizing: border-box; }
@@ -19,17 +19,42 @@ button { padding: 10px 15px; cursor: pointer; }
 #clear { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 12px; background: #111019dc; text-align: center; }
 #clear[hidden] { display: none; }
 #clear strong { color: #c7ff76; font: bold clamp(20px, 5vw, 42px) monospace; }
-#touch { display: none; gap: 8px; }
-#touch button { touch-action: none; min-width: 52px; }
-@media (pointer: coarse) { #touch { display: flex; } }
+#touch { display: none; width: 100%; justify-content: space-between; gap: 16px; }
+.directions { display: flex; gap: 8px; }
+#touch button { touch-action: none; user-select: none; -webkit-user-select: none; min-width: clamp(62px, 12vw, 100px); min-height: clamp(64px, 12vw, 86px); font-size: 23px; }
+#touch [data-key="Space"] { min-width: clamp(90px, 21vw, 158px); font-size: 18px; }
+@media (any-pointer: coarse) { #touch { display: flex; } }
+@media (pointer: coarse) { .keyboard-controls { display: none; } }
+.touch-device body { padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+.touch-device #touch { display: flex; }
+.touch-device .keyboard-controls { display: none; }
+.direction-icon { display: inline-block; width: 12px; height: 12px; border: solid currentColor; border-width: 0 3px 3px 0; transform: rotate(-45deg); }
+[data-key="KeyA"] .direction-icon { transform: rotate(135deg); }
+@media (orientation: landscape) {
+  .touch-device body { min-height: 100dvh; padding-top: max(4px, env(safe-area-inset-top)); padding-bottom: max(4px, env(safe-area-inset-bottom)); }
+  .touch-device main { width: 100%; }
+  .touch-device header, .touch-device .stage { width: min(100%, max(160px, calc((100dvh - 118px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 2.2857))); margin-inline: auto; }
+  .touch-device h1 { font-size: 24px; margin-bottom: 4px; }
+  .touch-device footer { margin-top: 6px; }
+  .touch-device #touch button { min-height: clamp(48px, 17dvh, 66px); }
+}
 </style>
 <main>
  <header><h1>OBBY<span>.EXE</span></h1><div class="room" aria-live="polite">ROOM 001</div></header>
  <div class="stage">
-  <canvas width="960" height="420" aria-label="Hj�lp DUDE n� d�rren till h�ger."></canvas>
-  <div id="clear" hidden><strong role="status">ROOM 005 KLAR!</strong><button id="again">Spela igen</button></div>
+  <canvas width="960" height="420" aria-label="Hjälp DUDE nå dörren till höger."></canvas>
+  <div id="clear" hidden><strong role="status">ROOM 006 KLAR!</strong><button id="again">Spela igen</button></div>
  </div>
- <footer><div><kbd>A</kbd> V�nster � <kbd>D</kbd> H�ger � <kbd>Mellanslag</kbd> Hoppa</div><div id="touch"><button data-key="KeyA" aria-label="V�nster"></button><button data-key="KeyD" aria-label="H�ger"></button><button data-key="Space">Hoppa</button></div></footer>
+ <footer>
+  <div class="keyboard-controls"><kbd>A</kbd> Vänster · <kbd>D</kbd> Höger · <kbd>Mellanslag</kbd> Hoppa</div>
+  <div id="touch">
+   <div class="directions">
+    <button data-key="KeyA" aria-label="Vänster"><span class="direction-icon" aria-hidden="true"></span></button>
+    <button data-key="KeyD" aria-label="Höger"><span class="direction-icon" aria-hidden="true"></span></button>
+   </div>
+   <button data-key="Space">Hoppa</button>
+  </div>
+ </footer>
 </main>
 <script>
 const canvas = document.querySelector('canvas');
@@ -48,10 +73,13 @@ const spikeTraps = {
   5: {
     triggerX: fakeSpike.x,
     triggerEnd: fakeSpike.x + fakeSpike.width,
-    spikes: [585, 607, 629].map(x => ({ x, width: 22, height: 65 })),
+    spikes: [{ x: 585, width: fakeSpike.width * 2, height: fakeSpike.height }],
   },
 };
-const finalRoom = 5;
+const bridgeGap = { left: 245, right: 455 };
+const secondGap = { left: 585, right: 713 };
+const secondGapMiddle = (secondGap.left + secondGap.right) / 2;
+const finalRoom = 6;
 const glitchDuration = 260;
 const glitchColors = ['#c7ff76', '#e98dff', '#84eaff', '#a485e1'];
 const glitchPixels = [
@@ -59,6 +87,8 @@ const glitchPixels = [
   [-7, -19, 9, 2], [24, 15, 5, 3], [-19, 22, 7, 2], [12, 29, 10, 2],
 ];
 const keys = new Set();
+const touchKeys = new Map();
+if (navigator.maxTouchPoints > 0) document.documentElement.classList.add('touch-device');
 const controls = ['KeyA', 'KeyD', 'Space'];
 const dude = { x: 104, y: floor, vy: 0, grounded: true, facing: 1 };
 let won = false;
@@ -67,11 +97,17 @@ let gapLeft = initialGapLeft;
 let flashUntil = 0;
 let respawnDelay = 0;
 let spikeRaised = false;
+let secondGapOpen = false;
+
+function onInvisibleBridge() {
+  return room === 6 && dude.x > bridgeGap.left && dude.x < bridgeGap.right;
+}
 
 function reset() {
   Object.assign(dude, { x: 104, y: floor, vy: 0, grounded: true, facing: 1 });
   gapLeft = initialGapLeft;
   spikeRaised = false;
+  secondGapOpen = false;
   respawnDelay = 0;
   flashUntil = 0;
   won = false;
@@ -87,8 +123,13 @@ function enterRoom(number) {
 
 function press(key) {
   if (key === 'Space' && !keys.has(key) && dude.grounded && !won && !respawnDelay) {
-    dude.vy = -610;
     dude.grounded = false;
+    if (onInvisibleBridge()) {
+      dude.y = floor + 1;
+      dude.vy = 0;
+    } else {
+      dude.vy = -610;
+    }
   }
   keys.add(key);
 }
@@ -99,10 +140,30 @@ window.addEventListener('keydown', event => {
   press(event.code);
 });
 window.addEventListener('keyup', event => keys.delete(event.code));
-window.addEventListener('blur', () => keys.clear());
+function releaseControls() {
+  touchKeys.clear();
+  keys.clear();
+}
+window.addEventListener('blur', releaseControls);
+window.addEventListener('orientationchange', releaseControls);
+function releaseTouches(event) {
+  for (const touch of event.changedTouches) {
+    const key = touchKeys.get(touch.identifier);
+    touchKeys.delete(touch.identifier);
+    if (key && !Array.from(touchKeys.values()).includes(key)) keys.delete(key);
+  }
+}
+window.addEventListener('touchend', releaseTouches);
+window.addEventListener('touchcancel', releaseTouches);
 again.addEventListener('click', () => enterRoom(1));
 for (const button of document.querySelectorAll('[data-key]')) {
+  button.addEventListener('touchstart', event => {
+    event.preventDefault();
+    for (const touch of event.changedTouches) touchKeys.set(touch.identifier, button.dataset.key);
+    press(button.dataset.key);
+  }, { passive: false });
   button.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'touch') return;
     event.preventDefault();
     button.setPointerCapture(event.pointerId);
     press(button.dataset.key);
@@ -125,7 +186,13 @@ function update(dt) {
     gapLeft += gapShift;
     flashUntil = performance.now() + glitchDuration;
   }
-  const overGround = room >= 4 || dude.x <= gapLeft || dude.x >= gapLeft + gapWidth;
+  const openGap = room === 6 ? secondGap : { left: gapLeft, right: gapLeft + gapWidth };
+  if (room === 6 && dude.x >= secondGapMiddle && dude.x < secondGap.right) {
+    secondGapOpen = true;
+  }
+  const hasOpenGap = room <= 3 || (room === 6 && secondGapOpen);
+  const aboveSolidFloor = !hasOpenGap || dude.x <= openGap.left || dude.x >= openGap.right;
+  const overGround = aboveSolidFloor && (!onInvisibleBridge() || dude.grounded);
   const previousY = dude.y;
   if (!overGround) dude.grounded = false;
   if (!dude.grounded) {
@@ -207,26 +274,29 @@ function drawSpike(spike) {
 }
 
 function draw(time) {
-  const gapRight = gapLeft + gapWidth;
+  const visibleGaps = room === 6 ? (secondGapOpen ? [bridgeGap, secondGap] : [bridgeGap]) :
+    room <= 3 ? [{ left: gapLeft, right: gapLeft + gapWidth }] : [];
   const backdrop = ctx.createLinearGradient(0, 0, 0, 420);
   backdrop.addColorStop(0, '#26203c');
   backdrop.addColorStop(1, '#12101d');
   box(0, 0, 960, 420, backdrop);
   for (let x = 0; x < 960; x += 40) box(x, 0, 1, 420, '#ffffff09');
   for (let y = 4; y < 420; y += 40) box(0, y, 960, 1, '#ffffff09');
-  const platforms = room >= 4 ? [[0, 960]] : [[0, gapLeft], [gapRight, 960]];
-  if (room < 4) box(gapLeft, floor, gapRight - gapLeft, 96, '#08070e');
-  for (const [start, end] of platforms) {
+  let start = 0;
+  for (const gap of [...visibleGaps, { left: canvas.width, right: canvas.width }]) {
+    const end = gap.left;
     box(start, floor, end - start, 96, '#322844');
     box(start, floor, end - start, 4, '#a485e1');
     for (let x = start + 16; x < end - 4; x += 22) box(x, floor + 14, 4, 4, '#665080');
+    if (gap.right > end) box(end, floor, gap.right - end, 96, '#08070e');
+    start = gap.right;
   }
   drawGapGlitch(time);
   const trap = spikeTraps[room];
   if (room === 5) drawSpike(fakeSpike);
   if (trap && spikeRaised) trap.spikes.forEach(drawSpike);
   door(104, 'START', '#bba4ec');
-  door(880, 'UTG�NG', '#c7ff76');
+  door(880, 'UTGÅNG', '#c7ff76');
   ctx.save();
   ctx.translate(dude.x, dude.y);
   const walking = dude.grounded && keys.has('KeyA') !== keys.has('KeyD');
