@@ -26,10 +26,10 @@ button { padding: 10px 15px; cursor: pointer; }
 <main>
  <header><h1>OBBY<span>.EXE</span></h1><div class="room" aria-live="polite">ROOM 001</div></header>
  <div class="stage">
-  <canvas width="960" height="420" aria-label="Hjälp DUDE nå dörren till höger."></canvas>
+  <canvas width="960" height="420" aria-label="Hj�lp DUDE n� d�rren till h�ger."></canvas>
   <div id="clear" hidden><strong role="status">ROOM 005 KLAR!</strong><button id="again">Spela igen</button></div>
  </div>
- <footer><div><kbd>A</kbd> Vänster · <kbd>D</kbd> Höger · <kbd>Mellanslag</kbd> Hoppa</div><div id="touch"><button data-key="KeyA" aria-label="Vänster">←</button><button data-key="KeyD" aria-label="Höger">→</button><button data-key="Space">Hoppa</button></div></footer>
+ <footer><div><kbd>A</kbd> V�nster � <kbd>D</kbd> H�ger � <kbd>Mellanslag</kbd> Hoppa</div><div id="touch"><button data-key="KeyA" aria-label="V�nster"></button><button data-key="KeyD" aria-label="H�ger"></button><button data-key="Space">Hoppa</button></div></footer>
 </main>
 <script>
 const canvas = document.querySelector('canvas');
@@ -42,10 +42,14 @@ const initialGapLeft = 421;
 const gapWidth = 127;
 const gapShift = 98;
 const fakeSpike = { x: 472, width: 22, height: 65 };
-const roomSpikes = {
-  3: { x: 600, width: 18, height: 68, triggerX: 600 },
-  4: { x: 788, width: 22, height: 65, triggerX: 735 },
-  5: { x: 585, width: 22, height: 65, triggerX: fakeSpike.x, triggerEnd: fakeSpike.x + fakeSpike.width },
+const spikeTraps = {
+  3: { triggerX: 600, triggerEnd: 618, spikes: [{ x: 600, width: 18, height: 68 }] },
+  4: { triggerX: 735, triggerEnd: 810, spikes: [{ x: 788, width: 22, height: 65 }] },
+  5: {
+    triggerX: fakeSpike.x,
+    triggerEnd: fakeSpike.x + fakeSpike.width,
+    spikes: [585, 607, 629].map(x => ({ x, width: 22, height: 65 })),
+  },
 };
 const finalRoom = 5;
 const glitchDuration = 260;
@@ -134,20 +138,13 @@ function update(dt) {
     }
   }
   if (dude.y > 490) reset();
-  const spike = roomSpikes[room];
-  if (spike) {
-    const overSpike = dude.x >= spike.x && dude.x <= spike.x + spike.width;
-    const triggerEnd = spike.triggerEnd ?? spike.x + spike.width;
-    if (dude.x >= spike.triggerX && dude.x <= triggerEnd && dude.y <= floor) {
-      spikeRaised = true;
-    }
-    if (spikeRaised && overSpike) {
-      const peak = 1 - Math.abs((dude.x - spike.x) / spike.width * 2 - 1);
-      if (dude.y >= floor - spike.height * peak && dude.y <= floor) {
-        respawnDelay = 0.35;
-        return;
-      }
-    }
+  const trap = spikeTraps[room];
+  if (trap && dude.x >= trap.triggerX && dude.x <= trap.triggerEnd && dude.y <= floor) {
+    spikeRaised = true;
+  }
+  if (trap && spikeRaised && trap.spikes.some(hitsSpike)) {
+    respawnDelay = 0.35;
+    return;
   }
   if (dude.grounded && dude.x >= 849 && dude.x <= 911) {
     if (room < finalRoom) {
@@ -194,6 +191,11 @@ function door(x, label, accent) {
   ctx.fillText(label, x, floor - 118);
 }
 
+function hitsSpike(spike) {
+  const peak = 1 - Math.abs((dude.x - spike.x) / spike.width * 2 - 1);
+  return peak >= 0 && dude.y >= floor - spike.height * peak && dude.y <= floor;
+}
+
 function drawSpike(spike) {
   ctx.fillStyle = '#ff638d';
   ctx.beginPath();
@@ -220,11 +222,11 @@ function draw(time) {
     for (let x = start + 16; x < end - 4; x += 22) box(x, floor + 14, 4, 4, '#665080');
   }
   drawGapGlitch(time);
-  const spike = roomSpikes[room];
+  const trap = spikeTraps[room];
   if (room === 5) drawSpike(fakeSpike);
-  if (spike && spikeRaised) drawSpike(spike);
+  if (trap && spikeRaised) trap.spikes.forEach(drawSpike);
   door(104, 'START', '#bba4ec');
-  door(880, 'UTGÅNG', '#c7ff76');
+  door(880, 'UTG�NG', '#c7ff76');
   ctx.save();
   ctx.translate(dude.x, dude.y);
   const walking = dude.grounded && keys.has('KeyA') !== keys.has('KeyD');
