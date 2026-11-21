@@ -43,7 +43,7 @@ button { padding: 10px 15px; cursor: pointer; }
  <header><h1>OBBY<span>.EXE</span></h1><div class="room" aria-live="polite">ROOM 001</div></header>
  <div class="stage">
   <canvas width="960" height="420" aria-label="Hjälp DUDE nå dörren till höger."></canvas>
-  <div id="clear" hidden><strong role="status">ROOM 006 KLAR!</strong><button id="again">Spela igen</button></div>
+  <div id="clear" hidden><strong role="status">ROOM 007 KLAR!</strong><button id="again">Spela igen</button></div>
  </div>
  <footer>
   <div class="keyboard-controls"><kbd>A</kbd> Vänster · <kbd>D</kbd> Höger · <kbd>Mellanslag</kbd> Hoppa</div>
@@ -79,7 +79,12 @@ const spikeTraps = {
 const bridgeGap = { left: 245, right: 455 };
 const secondGap = { left: 585, right: 713 };
 const secondGapMiddle = (secondGap.left + secondGap.right) / 2;
-const finalRoom = 6;
+const roomSevenGap = { left: 736, right: 834 };
+const roomSevenReveal = 690;
+const retractingSpikes = [65, 167, 242, 317, 392].map(x => ({ x, width: 22, height: 65 }));
+const middleSpike = { x: 480, width: 22, height: 65 };
+const roomSevenFakes = [565, 628, 701].map(x => ({ x, width: 22, height: 65 }));
+const finalRoom = 7;
 const glitchDuration = 260;
 const glitchColors = ['#c7ff76', '#e98dff', '#84eaff', '#a485e1'];
 const glitchPixels = [
@@ -108,6 +113,7 @@ function reset() {
   gapLeft = initialGapLeft;
   spikeRaised = false;
   secondGapOpen = false;
+  for (const spike of retractingSpikes) spike.height = 65;
   respawnDelay = 0;
   flashUntil = 0;
   won = false;
@@ -186,11 +192,13 @@ function update(dt) {
     gapLeft += gapShift;
     flashUntil = performance.now() + glitchDuration;
   }
-  const openGap = room === 6 ? secondGap : { left: gapLeft, right: gapLeft + gapWidth };
-  if (room === 6 && dude.x >= secondGapMiddle && dude.x < secondGap.right) {
+  const openGap = room === 7 ? roomSevenGap : room === 6 ? secondGap :
+    { left: gapLeft, right: gapLeft + gapWidth };
+  if ((room === 6 && dude.x >= secondGapMiddle && dude.x < secondGap.right) ||
+      (room === 7 && dude.x >= roomSevenReveal)) {
     secondGapOpen = true;
   }
-  const hasOpenGap = room <= 3 || (room === 6 && secondGapOpen);
+  const hasOpenGap = room <= 3 || (room >= 6 && secondGapOpen);
   const aboveSolidFloor = !hasOpenGap || dude.x <= openGap.left || dude.x >= openGap.right;
   const overGround = aboveSolidFloor && (!onInvisibleBridge() || dude.grounded);
   const previousY = dude.y;
@@ -212,6 +220,17 @@ function update(dt) {
   if (trap && spikeRaised && trap.spikes.some(hitsSpike)) {
     respawnDelay = 0.35;
     return;
+  }
+  if (room === 7) {
+    for (const spike of retractingSpikes) {
+      const nearSpike = dude.x >= spike.x - 32 && dude.x <= spike.x + spike.width + 32;
+      const heightChange = dude.grounded && nearSpike ? -800 : 800;
+      spike.height = Math.max(0, Math.min(65, spike.height + heightChange * dt));
+    }
+    if (hitsSpike(middleSpike) || retractingSpikes.some(hitsSpike)) {
+      respawnDelay = 0.35;
+      return;
+    }
   }
   if (dude.grounded && dude.x >= 849 && dude.x <= 911) {
     if (room < finalRoom) {
@@ -260,7 +279,7 @@ function door(x, label, accent) {
 
 function hitsSpike(spike) {
   const peak = 1 - Math.abs((dude.x - spike.x) / spike.width * 2 - 1);
-  return peak >= 0 && dude.y >= floor - spike.height * peak && dude.y <= floor;
+  return spike.height > 0 && peak >= 0 && dude.y >= floor - spike.height * peak && dude.y <= floor;
 }
 
 function drawSpike(spike) {
@@ -274,7 +293,8 @@ function drawSpike(spike) {
 }
 
 function draw(time) {
-  const visibleGaps = room === 6 ? (secondGapOpen ? [bridgeGap, secondGap] : [bridgeGap]) :
+  const visibleGaps = room === 7 ? (secondGapOpen ? [roomSevenGap] : []) :
+    room === 6 ? (secondGapOpen ? [bridgeGap, secondGap] : [bridgeGap]) :
     room <= 3 ? [{ left: gapLeft, right: gapLeft + gapWidth }] : [];
   const backdrop = ctx.createLinearGradient(0, 0, 0, 420);
   backdrop.addColorStop(0, '#26203c');
@@ -295,6 +315,11 @@ function draw(time) {
   const trap = spikeTraps[room];
   if (room === 5) drawSpike(fakeSpike);
   if (trap && spikeRaised) trap.spikes.forEach(drawSpike);
+  if (room === 7) {
+    retractingSpikes.forEach(drawSpike);
+    drawSpike(middleSpike);
+    roomSevenFakes.forEach(drawSpike);
+  }
   door(104, 'START', '#bba4ec');
   door(880, 'UTGÅNG', '#c7ff76');
   ctx.save();
