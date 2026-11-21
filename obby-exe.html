@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="sv">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OBBY.EXE</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100svh; display: grid; place-items: center; padding: 18px; background: #0d0e14; color: #f4f2ff; font-family: system-ui, sans-serif; }
+main { width: min(100%, 1040px); }
+header, footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { margin: 0 0 12px; font: 900 clamp(32px, 7vw, 64px)/1 monospace; letter-spacing: -.08em; }
+h1 span { color: #c7ff76; }
+.room { color: #c7ff76; font: bold 14px monospace; }
+.stage { position: relative; overflow: hidden; border: 1px solid #494359; border-radius: 14px; box-shadow: 0 20px 65px #0008; }
+canvas { width: 100%; display: block; }
+footer { margin-top: 14px; color: #d8d3e6; }
+kbd, button { border: 1px solid #615972; border-radius: 6px; background: #242033; color: #fff; padding: 4px 8px; font: bold 13px monospace; }
+button { padding: 10px 15px; cursor: pointer; }
+#clear { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 12px; background: #111019dc; text-align: center; }
+#clear[hidden] { display: none; }
+#clear strong { color: #c7ff76; font: bold clamp(20px, 5vw, 42px) monospace; }
+#touch { display: none; gap: 8px; }
+#touch button { touch-action: none; min-width: 52px; }
+@media (pointer: coarse) { #touch { display: flex; } }
+</style>
+<main>
+ <header><h1>OBBY<span>.EXE</span></h1><div class="room" aria-live="polite">ROOM 001</div></header>
+ <div class="stage">
+  <canvas width="960" height="420" aria-label="Hjälp DUDE nå dörren till höger."></canvas>
+  <div id="clear" hidden><strong role="status">ROOM 005 KLAR!</strong><button id="again">Spela igen</button></div>
+ </div>
+ <footer><div><kbd>A</kbd> Vänster · <kbd>D</kbd> Höger · <kbd>Mellanslag</kbd> Hoppa</div><div id="touch"><button data-key="KeyA" aria-label="Vänster">←</button><button data-key="KeyD" aria-label="Höger">→</button><button data-key="Space">Hoppa</button></div></footer>
+</main>
+<script>
+const canvas = document.querySelector('canvas');
+const ctx = canvas.getContext('2d');
+const clear = document.querySelector('#clear');
+const again = document.querySelector('#again');
+const roomLabel = document.querySelector('.room');
+const floor = 324;
+const initialGapLeft = 421;
+const gapWidth = 127;
+const gapShift = 98;
+const fakeSpike = { x: 472, width: 22, height: 65 };
+const roomSpikes = {
+  3: { x: 600, width: 18, height: 68, triggerX: 600 },
+  4: { x: 788, width: 22, height: 65, triggerX: 735 },
+  5: { x: 585, width: 22, height: 65, triggerX: fakeSpike.x, triggerEnd: fakeSpike.x + fakeSpike.width },
+};
+const finalRoom = 5;
+const glitchDuration = 260;
+const glitchColors = ['#c7ff76', '#e98dff', '#84eaff', '#a485e1'];
+const glitchPixels = [
+  [0, -5, 14, 3], [8, 5, 8, 2], [-11, 12, 12, 3], [17, -11, 6, 2],
+  [-7, -19, 9, 2], [24, 15, 5, 3], [-19, 22, 7, 2], [12, 29, 10, 2],
+];
+const keys = new Set();
+const controls = ['KeyA', 'KeyD', 'Space'];
+const dude = { x: 104, y: floor, vy: 0, grounded: true, facing: 1 };
+let won = false;
+let room = 1;
+let gapLeft = initialGapLeft;
+let flashUntil = 0;
+let respawnDelay = 0;
+let spikeRaised = false;
+
+function reset() {
+  Object.assign(dude, { x: 104, y: floor, vy: 0, grounded: true, facing: 1 });
+  gapLeft = initialGapLeft;
+  spikeRaised = false;
+  respawnDelay = 0;
+  flashUntil = 0;
+  won = false;
+  clear.hidden = true;
+}
+
+function enterRoom(number) {
+  room = number;
+  roomLabel.textContent = 'ROOM 00' + room;
+  keys.clear();
+  reset();
+}
+
+function press(key) {
+  if (key === 'Space' && !keys.has(key) && dude.grounded && !won && !respawnDelay) {
+    dude.vy = -610;
+    dude.grounded = false;
+  }
+  keys.add(key);
+}
+
+window.addEventListener('keydown', event => {
+  if (!controls.includes(event.code) || (won && event.target === again)) return;
+  event.preventDefault();
+  press(event.code);
+});
+window.addEventListener('keyup', event => keys.delete(event.code));
+window.addEventListener('blur', () => keys.clear());
+again.addEventListener('click', () => enterRoom(1));
+for (const button of document.querySelectorAll('[data-key]')) {
+  button.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    button.setPointerCapture(event.pointerId);
+    press(button.dataset.key);
+  });
+  button.addEventListener('lostpointercapture', () => keys.delete(button.dataset.key));
+}
+
+function update(dt) {
+  if (won) return;
+  if (respawnDelay > 0) {
+    respawnDelay -= dt;
+    if (respawnDelay <= 0) reset();
+    return;
+  }
+  const direction = Number(keys.has('KeyD')) - Number(keys.has('KeyA'));
+  if (direction) dude.facing = direction;
+  dude.x = Math.max(14, Math.min(946, dude.x + direction * 275 * dt));
+  if (room === 2 && gapLeft === initialGapLeft && dude.y < floor &&
+      dude.x > gapLeft && dude.x < gapLeft + gapWidth) {
+    gapLeft += gapShift;
+    flashUntil = performance.now() + glitchDuration;
+  }
+  const overGround = room >= 4 || dude.x <= gapLeft || dude.x >= gapLeft + gapWidth;
+  const previousY = dude.y;
+  if (!overGround) dude.grounded = false;
+  if (!dude.grounded) {
+    dude.vy += 1650 * dt;
+    dude.y += dude.vy * dt;
+    if (overGround && dude.vy >= 0 && previousY <= floor && dude.y >= floor) {
+      dude.y = floor;
+      dude.vy = 0;
+      dude.grounded = true;
+    }
+  }
+  if (dude.y > 490) reset();
+  const spike = roomSpikes[room];
+  if (spike) {
+    const overSpike = dude.x >= spike.x && dude.x <= spike.x + spike.width;
+    const triggerEnd = spike.triggerEnd ?? spike.x + spike.width;
+    if (dude.x >= spike.triggerX && dude.x <= triggerEnd && dude.y <= floor) {
+      spikeRaised = true;
+    }
+    if (spikeRaised && overSpike) {
+      const peak = 1 - Math.abs((dude.x - spike.x) / spike.width * 2 - 1);
+      if (dude.y >= floor - spike.height * peak && dude.y <= floor) {
+        respawnDelay = 0.35;
+        return;
+      }
+    }
+  }
+  if (dude.grounded && dude.x >= 849 && dude.x <= 911) {
+    if (room < finalRoom) {
+      enterRoom(room + 1);
+      return;
+    }
+    won = true;
+    clear.hidden = false;
+    again.focus();
+  }
+}
+
+function box(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+}
+
+function drawGapGlitch(time) {
+  const remaining = (flashUntil - time) / glitchDuration;
+  if (remaining <= 0) return;
+  const progress = 1 - remaining;
+  const jitter = Math.floor(progress * 9) % 2 ? 5 : -3;
+  ctx.save();
+  ctx.globalAlpha = remaining;
+  for (const edge of [gapLeft, gapLeft + gapWidth]) {
+    const trailingEdge = edge - gapShift * remaining;
+    glitchPixels.forEach(([x, y, width, height], index) => {
+      const origin = index % 2 ? edge : trailingEdge;
+      box(origin + x + jitter, floor + y, width, height,
+        glitchColors[index % glitchColors.length]);
+    });
+  }
+  ctx.restore();
+}
+
+function door(x, label, accent) {
+  box(x - 37, floor - 106, 74, 106, '#282339');
+  box(x - 30, floor - 98, 60, 98, accent);
+  box(x - 26, floor - 94, 52, 94, '#161322');
+  box(x + 13, floor - 44, 6, 6, accent);
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 14px monospace';
+  ctx.fillStyle = accent;
+  ctx.fillText(label, x, floor - 118);
+}
+
+function drawSpike(spike) {
+  ctx.fillStyle = '#ff638d';
+  ctx.beginPath();
+  ctx.moveTo(spike.x, floor);
+  ctx.lineTo(spike.x + spike.width / 2, floor - spike.height);
+  ctx.lineTo(spike.x + spike.width, floor);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function draw(time) {
+  const gapRight = gapLeft + gapWidth;
+  const backdrop = ctx.createLinearGradient(0, 0, 0, 420);
+  backdrop.addColorStop(0, '#26203c');
+  backdrop.addColorStop(1, '#12101d');
+  box(0, 0, 960, 420, backdrop);
+  for (let x = 0; x < 960; x += 40) box(x, 0, 1, 420, '#ffffff09');
+  for (let y = 4; y < 420; y += 40) box(0, y, 960, 1, '#ffffff09');
+  const platforms = room >= 4 ? [[0, 960]] : [[0, gapLeft], [gapRight, 960]];
+  if (room < 4) box(gapLeft, floor, gapRight - gapLeft, 96, '#08070e');
+  for (const [start, end] of platforms) {
+    box(start, floor, end - start, 96, '#322844');
+    box(start, floor, end - start, 4, '#a485e1');
+    for (let x = start + 16; x < end - 4; x += 22) box(x, floor + 14, 4, 4, '#665080');
+  }
+  drawGapGlitch(time);
+  const spike = roomSpikes[room];
+  if (room === 5) drawSpike(fakeSpike);
+  if (spike && spikeRaised) drawSpike(spike);
+  door(104, 'START', '#bba4ec');
+  door(880, 'UTGÅNG', '#c7ff76');
+  ctx.save();
+  ctx.translate(dude.x, dude.y);
+  const walking = dude.grounded && keys.has('KeyA') !== keys.has('KeyD');
+  const stride = walking ? Math.sin(time / 65) * 7 : 0;
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.fillText('DUDE', 0, -61);
+  ctx.scale(dude.facing, 1);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 3.5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(0, -44, 9, 0, Math.PI * 2);
+  ctx.moveTo(0, -35); ctx.lineTo(0, -17);
+  ctx.moveTo(-12, -23 - stride / 2); ctx.lineTo(0, -31); ctx.lineTo(12, -23 + stride / 2);
+  ctx.moveTo(-8 - stride, -2); ctx.lineTo(0, -17); ctx.lineTo(8 + stride, dude.grounded ? -2 : -8);
+  ctx.stroke();
+  box(3, -46, 2, 2, '#fff');
+  ctx.restore();
+}
+
+let last = performance.now();
+let accumulated = 0;
+const step = 1 / 120;
+function frame(now) {
+  accumulated += Math.min((now - last) / 1000, 0.05);
+  last = now;
+  while (accumulated >= step) {
+    update(step);
+    accumulated -= step;
+  }
+  draw(now);
+  requestAnimationFrame(frame);
+}
+draw(last);
+requestAnimationFrame(frame);
+</script>
