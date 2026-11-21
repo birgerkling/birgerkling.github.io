@@ -8,8 +8,17 @@
 body { margin: 0; min-height: 100svh; display: grid; place-items: center; padding: 18px; background: #0d0e14; color: #f4f2ff; font-family: system-ui, sans-serif; }
 main { width: min(100%, 1040px); }
 header, footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-h1 { margin: 0 0 12px; font: 900 clamp(32px, 7vw, 64px)/1 monospace; letter-spacing: -.08em; }
-h1 span { color: #c7ff76; }
+h1 { position: relative; isolation: isolate; margin: 0 0 12px; font: 900 clamp(32px, 7vw, 64px)/1 monospace; letter-spacing: -.08em; }
+h1 span { color: #c7ff76; text-shadow: 2px 1px #533968; }
+h1::before, h1::after { content: attr(data-title); position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+h1::before { color: #84eaff; clip-path: inset(22% 0 54%); transform: translateX(-3px); }
+h1::after { color: #e98dff; clip-path: inset(67% 0 11%); transform: translateX(3px); animation: title-glitch 4s steps(1) infinite; }
+@keyframes title-glitch {
+  0%, 94%, 100% { transform: translateX(3px); clip-path: inset(67% 0 11%); }
+  88% { transform: translateX(7px); clip-path: inset(39% 0 44%); }
+  91% { transform: translateX(-4px); clip-path: inset(72% 0 8%); }
+}
+@media (prefers-reduced-motion: reduce) { h1::after { animation: none; } }
 .room { color: #c7ff76; font: bold 14px monospace; }
 .stage { position: relative; overflow: hidden; border: 1px solid #494359; border-radius: 14px; box-shadow: 0 20px 65px #0008; }
 canvas { width: 100%; display: block; }
@@ -40,13 +49,13 @@ button { padding: 10px 15px; cursor: pointer; }
 }
 </style>
 <main>
- <header><h1>OBBY<span>.EXE</span></h1><div class="room" aria-live="polite">ROOM 001</div></header>
+ <header><h1 data-title="OBBY.EXE" aria-label="OBBY.EXE">OBBY<span>.EXE</span></h1><div class="room" aria-live="polite">ROOM 001</div></header>
  <div class="stage">
   <canvas width="960" height="420" aria-label="Hjälp DUDE nå dörren till höger."></canvas>
-  <div id="clear" hidden><strong role="status">ROOM 007 KLAR!</strong><button id="again">Spela igen</button></div>
+  <div id="clear" hidden><strong role="status">ROOM 008 KLAR!</strong><button id="again">Spela igen</button></div>
  </div>
  <footer>
-  <div class="keyboard-controls"><kbd>A</kbd> Vänster · <kbd>D</kbd> Höger · <kbd>Mellanslag</kbd> Hoppa</div>
+  <div class="keyboard-controls"><kbd>A</kbd> / <kbd>←</kbd> Vänster · <kbd>D</kbd> / <kbd>→</kbd> Höger · <kbd>Mellanslag</kbd> / <kbd>↑</kbd> Hoppa</div>
   <div id="touch">
    <div class="directions">
     <button data-key="KeyA" aria-label="Vänster"><span class="direction-icon" aria-hidden="true"></span></button>
@@ -73,7 +82,7 @@ const spikeTraps = {
   5: {
     triggerX: fakeSpike.x,
     triggerEnd: fakeSpike.x + fakeSpike.width,
-    spikes: [{ x: 585, width: fakeSpike.width * 2, height: fakeSpike.height }],
+    spikes: [{ x: 585, width: fakeSpike.width * 5, height: fakeSpike.height }],
   },
 };
 const bridgeGap = { left: 245, right: 455 };
@@ -81,10 +90,17 @@ const secondGap = { left: 585, right: 713 };
 const secondGapMiddle = (secondGap.left + secondGap.right) / 2;
 const roomSevenGap = { left: 736, right: 834 };
 const roomSevenReveal = 690;
-const retractingSpikes = [65, 167, 242, 317, 392].map(x => ({ x, width: 22, height: 65 }));
+const retractingSpikes = [
+  0, 23, 46, 69,
+  127, 151, 175, 199, 223, 247, 271, 295, 319, 343, 367, 391, 415, 437, 458,
+].map(x => ({ x, width: 22, height: 65 }));
 const middleSpike = { x: 480, width: 22, height: 65 };
-const roomSevenFakes = [565, 628, 701].map(x => ({ x, width: 22, height: 65 }));
-const finalRoom = 7;
+const roomSevenFakes = [502, 525, 548, 571, 594, 617, 640, 663, 686, 709]
+  .map(x => ({ x, width: 22, height: 65 }));
+const roomEightGap = { left: 375, right: 587 };
+const upperBridgeY = floor - 80;
+const upperBridgeEntry = 180;
+const finalRoom = 8;
 const glitchDuration = 260;
 const glitchColors = ['#c7ff76', '#e98dff', '#84eaff', '#a485e1'];
 const glitchPixels = [
@@ -93,8 +109,13 @@ const glitchPixels = [
 ];
 const keys = new Set();
 const touchKeys = new Map();
+const heldKeyboardKeys = new Map();
 if (navigator.maxTouchPoints > 0) document.documentElement.classList.add('touch-device');
-const controls = ['KeyA', 'KeyD', 'Space'];
+const controls = new Map([
+  ['KeyA', 'KeyA'], ['ArrowLeft', 'KeyA'],
+  ['KeyD', 'KeyD'], ['ArrowRight', 'KeyD'],
+  ['Space', 'Space'], ['ArrowUp', 'Space'],
+]);
 const dude = { x: 104, y: floor, vy: 0, grounded: true, facing: 1 };
 let won = false;
 let room = 1;
@@ -103,6 +124,8 @@ let flashUntil = 0;
 let respawnDelay = 0;
 let spikeRaised = false;
 let secondGapOpen = false;
+let upperBridgeAccess = false;
+const trapGlitches = [];
 
 function onInvisibleBridge() {
   return room === 6 && dude.x > bridgeGap.left && dude.x < bridgeGap.right;
@@ -113,7 +136,9 @@ function reset() {
   gapLeft = initialGapLeft;
   spikeRaised = false;
   secondGapOpen = false;
-  for (const spike of retractingSpikes) spike.height = 65;
+  upperBridgeAccess = false;
+  for (const spike of retractingSpikes) Object.assign(spike, { height: 65, lowered: false });
+  trapGlitches.length = 0;
   respawnDelay = 0;
   flashUntil = 0;
   won = false;
@@ -123,7 +148,7 @@ function reset() {
 function enterRoom(number) {
   room = number;
   roomLabel.textContent = 'ROOM 00' + room;
-  keys.clear();
+  releaseControls();
   reset();
 }
 
@@ -134,19 +159,33 @@ function press(key) {
       dude.y = floor + 1;
       dude.vy = 0;
     } else {
+      if (room === 8 && dude.y === floor) upperBridgeAccess = dude.x <= upperBridgeEntry;
       dude.vy = -610;
+      burstGlitch(dude.x, -24, dude.y);
     }
   }
   keys.add(key);
 }
 
 window.addEventListener('keydown', event => {
-  if (!controls.includes(event.code) || (won && event.target === again)) return;
+  const key = controls.get(event.code);
+  if (!key || (won && event.target === again)) return;
   event.preventDefault();
-  press(event.code);
+  if (event.repeat) return;
+  heldKeyboardKeys.set(event.code, key);
+  press(key);
 });
-window.addEventListener('keyup', event => keys.delete(event.code));
+window.addEventListener('keyup', event => {
+  const key = heldKeyboardKeys.get(event.code);
+  heldKeyboardKeys.delete(event.code);
+  releaseKey(key);
+});
+function releaseKey(key) {
+  if (key && !Array.from(heldKeyboardKeys.values()).includes(key) &&
+      !Array.from(touchKeys.values()).includes(key)) keys.delete(key);
+}
 function releaseControls() {
+  heldKeyboardKeys.clear();
   touchKeys.clear();
   keys.clear();
 }
@@ -156,7 +195,7 @@ function releaseTouches(event) {
   for (const touch of event.changedTouches) {
     const key = touchKeys.get(touch.identifier);
     touchKeys.delete(touch.identifier);
-    if (key && !Array.from(touchKeys.values()).includes(key)) keys.delete(key);
+    releaseKey(key);
   }
 }
 window.addEventListener('touchend', releaseTouches);
@@ -174,7 +213,7 @@ for (const button of document.querySelectorAll('[data-key]')) {
     button.setPointerCapture(event.pointerId);
     press(button.dataset.key);
   });
-  button.addEventListener('lostpointercapture', () => keys.delete(button.dataset.key));
+  button.addEventListener('lostpointercapture', () => releaseKey(button.dataset.key));
 }
 
 function update(dt) {
@@ -192,30 +231,37 @@ function update(dt) {
     gapLeft += gapShift;
     flashUntil = performance.now() + glitchDuration;
   }
-  const openGap = room === 7 ? roomSevenGap : room === 6 ? secondGap :
+  const openGap = room === 8 ? roomEightGap : room === 7 ? roomSevenGap : room === 6 ? secondGap :
     { left: gapLeft, right: gapLeft + gapWidth };
-  if ((room === 6 && dude.x >= secondGapMiddle && dude.x < secondGap.right) ||
-      (room === 7 && dude.x >= roomSevenReveal)) {
+  if (!secondGapOpen && ((room === 6 && dude.x >= secondGapMiddle && dude.x < secondGap.right) ||
+      (room === 7 && dude.x >= roomSevenReveal))) {
     secondGapOpen = true;
+    burstGlitch(openGap.left, 28);
+    burstGlitch(openGap.right, 28);
   }
-  const hasOpenGap = room <= 3 || (room >= 6 && secondGapOpen);
+  const hasOpenGap = room <= 3 || room === 8 || (room >= 6 && secondGapOpen);
   const aboveSolidFloor = !hasOpenGap || dude.x <= openGap.left || dude.x >= openGap.right;
   const overGround = aboveSolidFloor && (!onInvisibleBridge() || dude.grounded);
   const previousY = dude.y;
-  if (!overGround) dude.grounded = false;
+  let landed = false;
+  const overUpperBridge = room === 8 && upperBridgeAccess && previousY <= upperBridgeY;
+  const landingY = overUpperBridge ? upperBridgeY : floor;
+  if (!overGround && !overUpperBridge) dude.grounded = false;
   if (!dude.grounded) {
     dude.vy += 1650 * dt;
     dude.y += dude.vy * dt;
-    if (overGround && dude.vy >= 0 && previousY <= floor && dude.y >= floor) {
-      dude.y = floor;
+    if ((overGround || overUpperBridge) && dude.vy >= 0 && previousY <= landingY && dude.y >= landingY) {
+      dude.y = landingY;
       dude.vy = 0;
       dude.grounded = true;
+      landed = true;
     }
   }
   if (dude.y > 490) reset();
   const trap = spikeTraps[room];
-  if (trap && dude.x >= trap.triggerX && dude.x <= trap.triggerEnd && dude.y <= floor) {
+  if (trap && !spikeRaised && dude.x >= trap.triggerX && dude.x <= trap.triggerEnd && dude.y <= floor) {
     spikeRaised = true;
+    for (const spike of trap.spikes) burstGlitch(spike.x + spike.width / 2, -spike.height);
   }
   if (trap && spikeRaised && trap.spikes.some(hitsSpike)) {
     respawnDelay = 0.35;
@@ -224,15 +270,23 @@ function update(dt) {
   if (room === 7) {
     for (const spike of retractingSpikes) {
       const nearSpike = dude.x >= spike.x - 32 && dude.x <= spike.x + spike.width + 32;
-      const heightChange = dude.grounded && nearSpike ? -800 : 800;
+      const lowered = dude.grounded && nearSpike;
+      if (lowered !== spike.lowered) {
+        spike.lowered = lowered;
+        burstGlitch(spike.x + spike.width / 2, lowered ? 30 : -65);
+      }
+      const heightChange = lowered ? -1600 : 420;
       spike.height = Math.max(0, Math.min(65, spike.height + heightChange * dt));
     }
-    if (hitsSpike(middleSpike) || retractingSpikes.some(hitsSpike)) {
+    const landedOnSpikes = landed && retractingSpikes.some(spike =>
+      dude.x >= spike.x && dude.x <= spike.x + spike.width);
+    if (hitsSpike(middleSpike) || landedOnSpikes) {
       respawnDelay = 0.35;
       return;
     }
   }
-  if (dude.grounded && dude.x >= 849 && dude.x <= 911) {
+  const exitY = room === 8 ? upperBridgeY : floor;
+  if (dude.grounded && dude.y === exitY && dude.x >= 849 && dude.x <= 911) {
     if (room < finalRoom) {
       enterRoom(room + 1);
       return;
@@ -246,6 +300,28 @@ function update(dt) {
 function box(x, y, w, h, color) {
   ctx.fillStyle = color;
   ctx.fillRect(x, y, w, h);
+}
+
+function burstGlitch(x, travel, y = floor) {
+  trapGlitches.push({ x, y, travel, end: performance.now() + glitchDuration });
+}
+
+function drawTrapGlitches(time) {
+  while (trapGlitches.length && trapGlitches[0].end <= time) trapGlitches.shift();
+  for (const { x, y, travel, end } of trapGlitches) {
+    const remaining = (end - time) / glitchDuration;
+    const progress = 1 - remaining;
+    const jitter = Math.floor(progress * 9) % 2 ? 5 : -3;
+    ctx.save();
+    ctx.globalAlpha = remaining;
+    glitchPixels.forEach(([offsetX, offsetY, width, height], index) => {
+      const drift = index % 2 ? 1 : -1;
+      box(x + offsetX + jitter + drift * progress * 20,
+        y + offsetY * .6 + travel * progress, width, height,
+        glitchColors[index % glitchColors.length]);
+    });
+    ctx.restore();
+  }
 }
 
 function drawGapGlitch(time) {
@@ -266,15 +342,15 @@ function drawGapGlitch(time) {
   ctx.restore();
 }
 
-function door(x, label, accent) {
-  box(x - 37, floor - 106, 74, 106, '#282339');
-  box(x - 30, floor - 98, 60, 98, accent);
-  box(x - 26, floor - 94, 52, 94, '#161322');
-  box(x + 13, floor - 44, 6, 6, accent);
+function door(x, label, accent, base = floor) {
+  box(x - 37, base - 106, 74, 106, '#282339');
+  box(x - 30, base - 98, 60, 98, accent);
+  box(x - 26, base - 94, 52, 94, '#161322');
+  box(x + 13, base - 44, 6, 6, accent);
   ctx.textAlign = 'center';
   ctx.font = 'bold 14px monospace';
   ctx.fillStyle = accent;
-  ctx.fillText(label, x, floor - 118);
+  ctx.fillText(label, x, base - 118);
 }
 
 function hitsSpike(spike) {
@@ -293,7 +369,8 @@ function drawSpike(spike) {
 }
 
 function draw(time) {
-  const visibleGaps = room === 7 ? (secondGapOpen ? [roomSevenGap] : []) :
+  const visibleGaps = room === 8 ? [roomEightGap] :
+    room === 7 ? (secondGapOpen ? [roomSevenGap] : []) :
     room === 6 ? (secondGapOpen ? [bridgeGap, secondGap] : [bridgeGap]) :
     room <= 3 ? [{ left: gapLeft, right: gapLeft + gapWidth }] : [];
   const backdrop = ctx.createLinearGradient(0, 0, 0, 420);
@@ -320,8 +397,9 @@ function draw(time) {
     drawSpike(middleSpike);
     roomSevenFakes.forEach(drawSpike);
   }
+  drawTrapGlitches(time);
   door(104, 'START', '#bba4ec');
-  door(880, 'UTGÅNG', '#c7ff76');
+  door(880, 'UTGÅNG', '#c7ff76', room === 8 ? upperBridgeY : floor);
   ctx.save();
   ctx.translate(dude.x, dude.y);
   const walking = dude.grounded && keys.has('KeyA') !== keys.has('KeyD');
