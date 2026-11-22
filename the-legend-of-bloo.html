@@ -59,16 +59,17 @@ const inventoryOpen = document.querySelector('#inventory-open');
 const shop = document.querySelector('#shop');
 const shopOpen = document.querySelector('#shop-open');
 const shopMessage = document.querySelector('#shop-message');
+const fridgeScale = 3;
 const chestButton = document.querySelector('#chest-open');
 const chests = [
   {id:'counter-crumbs',area:'counter',x:176,y:104,seeds:6,item:'potion'},
   {id:'counter-spoon',area:'counter',x:443,y:126,seeds:4,item:'twig'},
   {id:'floor-rug',area:'floor',x:344,y:665,seeds:9,item:'speedPotion'},
   {id:'floor-table',area:'floor',x:1325,y:656,seeds:13},
-  {id:'fridge-left',area:'fridge',x:53,y:67,seeds:7,item:'potion'},
-  {id:'fridge-top',area:'fridge',x:250,y:55,seeds:8,item:'bow'},
-  {id:'fridge-shelf',area:'fridge',x:350,y:120,seeds:10,item:'speedPotion'},
-  {id:'fridge-corner',area:'fridge',x:438,y:206,seeds:12,item:'thorn'}
+  {id:'fridge-left',area:'fridge',x:53*fridgeScale,y:67*fridgeScale,seeds:7,item:'potion'},
+  {id:'fridge-top',area:'fridge',x:250*fridgeScale,y:55*fridgeScale,seeds:8,item:'bow'},
+  {id:'fridge-shelf',area:'fridge',x:350*fridgeScale,y:120*fridgeScale,seeds:10,item:'speedPotion'},
+  {id:'fridge-corner',area:'fridge',x:438*fridgeScale,y:206*fridgeScale,seeds:12,item:'thorn'}
 ];
 const openedChests = new Set();
 const catalog = {
@@ -146,10 +147,10 @@ const enemySpawns = [
   {area:'floor',x:1125,y:300},
   {area:'floor',x:836,y:660},
   {area:'floor',x:1215,y:684},
-  {area:'fridge',x:231,y:164,egg:true},
-  {area:'fridge',x:110,y:76,egg:true},
-  {area:'fridge',x:350,y:195,egg:true},
-  {area:'fridge',x:437,y:91,egg:true}
+  {area:'fridge',x:231*fridgeScale,y:164*fridgeScale,egg:true},
+  {area:'fridge',x:110*fridgeScale,y:76*fridgeScale,egg:true},
+  {area:'fridge',x:350*fridgeScale,y:195*fridgeScale,egg:true},
+  {area:'fridge',x:437*fridgeScale,y:91*fridgeScale,egg:true}
 ];
 const maxHP = 100;
 const swordDamage = 5;
@@ -179,8 +180,9 @@ const fridgeBlocks = [
 const ladderX = 177;
 const floorScale = 3;
 const shopkeeper = {x:ladderX*floorScale+100,y:106*floorScale+8};
-const worldWidth = 480*floorScale;
-const worldHeight = 270*floorScale;
+function areaScale() {
+  return area === 'floor' ? floorScale : area === 'fridge' ? fridgeScale : 1;
+}
 let swordPointer = null;
 let seeds = 0;
 let owned = [];
@@ -408,10 +410,11 @@ storePotionButtons.forEach((button,index) => button.addEventListener('click', ()
   itemSlots[storedItems().length-1].firstElementChild.focus();
 }));
 function cameraPosition() {
-  if (area !== 'floor') return {x:0,y:0};
+  const scale = areaScale();
+  if (scale === 1) return {x:0,y:0};
   return {
-    x:Math.round(Math.max(0,Math.min(worldWidth-canvas.width,bloo.x-canvas.width/2))),
-    y:Math.round(Math.max(0,Math.min(worldHeight-canvas.height,bloo.y-canvas.height/2)))
+    x:Math.round(Math.max(0,Math.min(canvas.width*(scale-1),bloo.x-canvas.width/2))),
+    y:Math.round(Math.max(0,Math.min(canvas.height*(scale-1),bloo.y-canvas.height/2)))
   };
 }
 function swordDirection(pointer) {
@@ -556,7 +559,7 @@ document.querySelector('#reset').addEventListener('click', reset);
 
 function canMove(x,y) {
   const onFloor = area === 'floor';
-  const scale = onFloor ? floorScale : 1;
+  const scale = areaScale();
   const furniture = onFloor ? floorFurniture : area === 'fridge' ? fridgeBlocks : obstacles;
   return x > 13 && x < 480*scale-13 && y > 19*scale+6 && y < 270*scale-20 &&
     !furniture.some(o => x > o.x*scale-10 && x < (o.x+o.w)*scale+10 &&
@@ -608,11 +611,11 @@ function update(dt) {
     Math.abs(bloo.x-fridgeDoor.x*floorScale) < 29 &&
     bloo.y <= fridgeDoor.y*floorScale+32;
   const atFridgeExit = area === 'fridge' && dy > 0 &&
-    Math.abs(bloo.x-fridgeExit.x) < 27 && bloo.y >= 239;
+    Math.abs(bloo.x-fridgeExit.x*fridgeScale) < 52 && bloo.y >= 245*fridgeScale;
   if (atFridgeDoor || atFridgeExit) {
     area = atFridgeDoor ? 'fridge' : 'floor';
-    bloo.x = atFridgeDoor ? fridgeExit.x : fridgeDoor.x*floorScale;
-    bloo.y = atFridgeDoor ? 227 : fridgeDoor.y*floorScale+40;
+    bloo.x = atFridgeDoor ? fridgeExit.x*fridgeScale : fridgeDoor.x*floorScale;
+    bloo.y = atFridgeDoor ? 234*fridgeScale : fridgeDoor.y*floorScale+40;
     shots = [];
     arrows = [];
     shopOpen.hidden = true;
@@ -957,8 +960,6 @@ function drawFridge() {
   ctx.fillStyle = '#ecf8ff';
   ctx.font = 'bold 10px monospace';
   ctx.fillText('↓ KÖKET',fridgeExit.x-21,261);
-  drawEnemies();
-  drawBloo();
 }
 function drawFridgeGuide(camera) {
   const x = fridgeDoor.x*floorScale;
@@ -980,7 +981,16 @@ function drawFridgeGuide(camera) {
 }
 function draw() {
   if (area === 'fridge') {
+    const camera = cameraPosition();
+    ctx.save();
+    ctx.translate(-camera.x,-camera.y);
+    ctx.save();
+    ctx.scale(fridgeScale,fridgeScale);
     drawFridge();
+    ctx.restore();
+    drawEnemies();
+    drawBloo();
+    ctx.restore();
     return;
   }
   if (area === 'floor') {
