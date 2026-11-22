@@ -23,13 +23,16 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 #joystick{display:none;width:94px;height:94px;flex:none;border:2px solid #836396;border-radius:50%;background:radial-gradient(circle,#402f58,#281d3b);touch-action:none;user-select:none;place-items:center}
 #joystick span{width:39px;height:39px;border:2px solid #b6a2d5;border-radius:50%;background:#624b87;pointer-events:none}
 @media(pointer:coarse){.pad{display:none}#joystick{display:grid}}
+#attack-stick{display:none;width:76px;height:76px;place-items:center;touch-action:none;user-select:none;border:2px solid #ad8496;border-radius:50%;background:#412b43}
+#attack-stick span{display:grid;place-items:center;width:35px;height:35px;border-radius:50%;background:#755063;pointer-events:none}
+@media(pointer:coarse){#attack-stick{display:grid}.actions [data-key="KeyE"]{display:none}}
 </style>
 <main>
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
 <footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra. R öppnar butiken · T öppnar kistor när du står nära.</span><button id="chest-open" hidden>Öppna kista · T</button><button id="shop-open" hidden>Butik · R</button><button id="accounts-open" aria-haspopup="dialog">Accounts</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
-<div class="controls"><div id="joystick" role="group" aria-label="Joystick. Dra för att styra Bloo."><span aria-hidden="true"></span></div><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button><button id="bow-fire" hidden>Bow · Mellanslag</button></div></div>
+<div class="controls"><div id="joystick" role="group" aria-label="Joystick. Dra för att styra Bloo."><span aria-hidden="true"></span></div><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ SWORD</button><div id="attack-stick" role="group" aria-label="Svärd. Dra för att sikta och släpp för att slå."><span aria-hidden="true">⚔</span></div><button data-key="KeyF">⬟ SHIELD</button><button id="bow-fire" hidden>Bow · Mellanslag</button></div></div>
 <dialog id="accounts" aria-labelledby="accounts-title">
   <h2 id="accounts-title">Accounts</h2>
   <p id="accounts-message" role="status"></p>
@@ -648,9 +651,9 @@ function awardSeeds(reward) {
   saveSeeds();
   say('+' + reward + ' Seeds');
 }
-function attack(pointer = swordPointer) {
+function attack(pointer = swordPointer, direction = null) {
   if (!bloo.hp || climb || bloo.guard || down('KeyF') || bloo.swing > 0) return;
-  bloo.swordAim = swordDirection(pointer);
+  bloo.swordAim = direction ?? swordDirection(pointer);
   bloo.swing = .27;
   const damage = catalog[equipped.weapon]?.power ?? swordDamage;
   if (area === 'boss' && onion.hp > 0) {
@@ -747,7 +750,47 @@ for (const type of ['pointerup','pointercancel','lostpointercapture']) {
     if (event.pointerId === stick.pointer) resetStick();
   });
 }
+const attackStick = document.querySelector('#attack-stick');
+const attackKnob = attackStick.firstElementChild;
+let attackPointer = null;
+let attackDirection = null;
+function resetAttackStick() {
+  attackPointer = null;
+  attackDirection = null;
+  attackKnob.style.transform = '';
+}
+function moveAttackStick(event) {
+  if (event.pointerId !== attackPointer) return;
+  const rect = attackStick.getBoundingClientRect();
+  const x = event.clientX-rect.left-rect.width/2;
+  const y = event.clientY-rect.top-rect.height/2;
+  const distance = Math.hypot(x,y);
+  attackDirection = distance > 9 ? {x:x/distance,y:y/distance} : null;
+  const scale = 1/Math.max(1,distance/22);
+  attackKnob.style.transform = 'translate('+x*scale+'px,'+y*scale+'px)';
+}
+attackStick.addEventListener('pointerdown', event => {
+  if (attackPointer !== null) return;
+  event.preventDefault();
+  attackPointer = event.pointerId;
+  attackStick.setPointerCapture(event.pointerId);
+  moveAttackStick(event);
+});
+attackStick.addEventListener('pointermove',moveAttackStick);
+attackStick.addEventListener('pointerup', event => {
+  if (event.pointerId !== attackPointer) return;
+  moveAttackStick(event);
+  const direction = attackDirection;
+  resetAttackStick();
+  if (direction) attack(null,direction);
+});
+for (const type of ['pointercancel','lostpointercapture']) {
+  attackStick.addEventListener(type,event => {
+    if (event.pointerId === attackPointer) resetAttackStick();
+  });
+}
 function clearInputs() {
+  resetAttackStick();
   resetStick();
   keys.clear();
   pointers.clear();
