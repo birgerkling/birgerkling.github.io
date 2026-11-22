@@ -62,6 +62,7 @@ const shopMessage = document.querySelector('#shop-message');
 const fridgeScale = 3;
 const chestButton = document.querySelector('#chest-open');
 const chests = [
+  {id:'onion-golden',area:'boss',x:240,y:42,seeds:0,item:'onionTears',golden:true},
   {id:'fridge-left',area:'fridge',x:53*fridgeScale,y:67*fridgeScale,seeds:7,item:'potion'},
   {id:'fridge-top',area:'fridge',x:250*fridgeScale,y:55*fridgeScale,seeds:8,item:'bow'},
   {id:'fridge-shelf',area:'fridge',x:350*fridgeScale,y:120*fridgeScale,seeds:10,item:'speedPotion'},
@@ -69,6 +70,7 @@ const chests = [
 ];
 const openedChests = new Set();
 const catalog = {
+  onionTears: {name:'ONION Tears',slot:'gadget',cost:0,detail:'Mellanslag får fiender att sikta och gå snett i 4 sekunder'},
   bow: {name:'Bow',slot:'gadget',cost:12,power:6,detail:'Mellanslag skjuter en pil mot musen'},
   "twig": {
     "name": "Kvistsvärd",
@@ -167,7 +169,7 @@ const floorFurniture = [
 const fridgeDoor = {x:422,y:87};
 const fridgeExit = {x:240};
 const bossDoorX = 247;
-const onionMaxHP = 300;
+const onionMaxHP = 500;
 const slamRadius = 70;
 let onion;
 const fridgeBlocks = [
@@ -217,6 +219,8 @@ function showSeeds() {
 }
 let arrows = [];
 let bowCooldown = 0;
+let tearsTime = 0;
+let tearsCooldown = 0;
 let bloo, enemies, shots, broken, area, climb, last = 0;
 
 function say(message) { if (status.textContent !== message) status.textContent = message; }
@@ -228,6 +232,8 @@ function reset() {
   shots = [];
   arrows = [];
   bowCooldown = 0;
+  tearsTime = 0;
+  tearsCooldown = 0;
   enemies = enemySpawns.map((spawn,index) => ({...spawn,maxHP:spawn.egg ? 50 : 20,hp:spawn.egg ? 50 : 20,homeX:spawn.x,homeY:spawn.y,cooldown:.6+index%3*.35,flash:0}));
   bloo.hp = maxHP;
   bloo.speedBoost = 0;
@@ -266,7 +272,7 @@ function bagFull() {
 }
 function nearbyChest() {
   if (!bloo.hp || climb) return undefined;
-  return chests.find(chest => chest.area === area && !openedChests.has(chest.id) &&
+  return chests.find(chest => chest.area === area && !openedChests.has(chest.id) && (!chest.golden || onion?.hp === 0) &&
     Math.hypot(bloo.x-chest.x,bloo.y-chest.y) <= 31);
 }
 function openChest() {
@@ -286,7 +292,8 @@ function openChest() {
   openedChests.add(chest.id);
   saveSeeds();
   chestButton.hidden = true;
-  say('Kista: +' + reward + ' Seeds' + (item ? ' och ' + item.name : '') + '!');
+  const loot = [reward ? '+' + reward + ' Seeds' : '',item?.name].filter(Boolean);
+  say((chest.golden ? 'GOLDEN CHEST: ' : 'Kista: ') + loot.join(' och ') + '!');
 }
 chestButton.addEventListener('click',openChest);
 function canBuy(id) {
@@ -437,11 +444,24 @@ function inSwordRange(target) {
 function down(...codes) { return codes.some(code => keys.has(code) || [...pointers.values()].includes(code)); }
 const bowButton = document.querySelector('#bow-fire');
 function updateBowButton() {
-  bowButton.hidden = equipped.gadget !== 'bow';
+  const id = equipped.gadget;
+  bowButton.hidden = !id;
+  if (id) bowButton.textContent = catalog[id].name + ' · Mellanslag';
 }
-function fireBow(pointer = swordPointer) {
-  if (equipped.gadget !== 'bow' || bowCooldown > 0 || !bloo.hp || climb ||
-      inventory.open || shop.open || down('KeyF')) return;
+function useGadget(pointer = swordPointer) {
+  const id = equipped.gadget;
+  if (!id || !bloo.hp || climb || inventory.open || shop.open || down('KeyF')) return;
+  if (id === 'onionTears') {
+    if (tearsCooldown > 0) {
+      say('ONION Tears laddar: ' + Math.ceil(tearsCooldown) + ' s');
+      return;
+    }
+    tearsTime = 4;
+    tearsCooldown = 12;
+    say('ONION Tears! Fienderna ser suddigt i 4 sekunder.');
+    return;
+  }
+  if (bowCooldown > 0) return;
   const aim = swordDirection(pointer);
   arrows.push({originX:bloo.x,originY:bloo.y,x:bloo.x,y:bloo.y,vx:aim.x*240,vy:aim.y*240,life:1});
   bowCooldown = 1;
@@ -449,10 +469,10 @@ function fireBow(pointer = swordPointer) {
 }
 bowButton.addEventListener('pointerdown', event => {
   event.preventDefault();
-  fireBow(event.pointerType === 'touch' ? null : swordPointer);
+  useGadget(event.pointerType === 'touch' ? null : swordPointer);
 });
 bowButton.addEventListener('click', event => {
-  if (!event.detail) fireBow();
+  if (!event.detail) useGadget();
 });
 function damageEnemy(pea,damage) {
   pea.hp = Math.max(0,pea.hp-damage);
@@ -506,7 +526,7 @@ document.addEventListener('keydown', event => {
   if (shop.open || inventory.open) return;
   if (event.code === 'Space') {
     event.preventDefault();
-    if (!event.repeat) fireBow();
+    if (!event.repeat) useGadget();
     return;
   }
   if (event.code === 'KeyT') {
@@ -594,6 +614,8 @@ function update(dt) {
     bloo.hp = Math.min(maxHP,bloo.hp+healTime*regenPerSecond+1e-9);
     showHealth();
   }
+  tearsTime = Math.max(0,tearsTime-dt);
+  tearsCooldown = Math.max(0,tearsCooldown-dt);
   bloo.speedBoost = Math.max(0,bloo.speedBoost-dt);
   bloo.swing = Math.max(0,bloo.swing-dt);
   bloo.flash = Math.max(0,bloo.flash-dt);
@@ -705,6 +727,10 @@ function hitOnion(damage,x,y) {
     say('ONION LORD är besegrad!');
   } else say((multiplier === 2 ? 'Ryggträff! ' : 'ONION LORD: ') + damage*multiplier + ' skada');
 }
+function enemyAim(x,y) {
+  const offset = tearsTime > 0 ? 29*Math.sin(tearsTime*5+x*.035) : 0;
+  return {x:bloo.x-x+offset,y:bloo.y-y+offset*.75};
+}
 function updateOnion(dt) {
   if (!onion.hp) return;
   onion.fog = Math.max(0,onion.fog-dt);
@@ -732,7 +758,7 @@ function updateOnion(dt) {
     return;
   }
   onion.cooldown = Math.max(0,onion.cooldown-dt);
-  const dx = bloo.x-onion.x, dy = bloo.y-onion.y;
+  const {x:dx,y:dy} = enemyAim(onion.x,onion.y);
   const distance = Math.hypot(dx,dy);
   if (distance > 1) {
     onion.fx = dx/distance;
@@ -752,17 +778,18 @@ function updateEnemies(dt) {
     if (pea.area !== area || !pea.hp) continue;
     pea.flash = Math.max(0,pea.flash-dt);
     pea.cooldown = Math.max(0,pea.cooldown-dt);
-    const dx = bloo.x-pea.x, dy = bloo.y-pea.y;
+    const {x:dx,y:dy} = enemyAim(pea.x,pea.y);
     const distance = Math.hypot(dx,dy);
+    const actualDistance = Math.hypot(bloo.x-pea.x,bloo.y-pea.y);
     if (pea.egg) {
-      if (distance < 31 && canMove((pea.x+bloo.x)/2,(pea.y+bloo.y)/2)) {
+      if (actualDistance < 31 && canMove((pea.x+bloo.x)/2,(pea.y+bloo.y)/2)) {
         if (!pea.cooldown) {
-          hurt('Egg slog med äggskalshandsken!',20);
+          if (distance < 31) hurt('Egg slog med äggskalshandsken!',20);
           pea.cooldown = 1.35;
           pea.punch = .22;
           if (!bloo.hp) return;
         }
-      } else if (distance < 145) {
+      } else if (actualDistance < 145 && distance > 1) {
         const x = pea.x + dx/distance*34*dt;
         const y = pea.y + dy/distance*34*dt;
         if (canMove(x,pea.y)) pea.x = x;
@@ -771,13 +798,13 @@ function updateEnemies(dt) {
       pea.punch = Math.max(0,(pea.punch ?? 0)-dt);
       continue;
     }
-    if (pea.cooldown || distance >= 205) continue;
-    if (distance < 29) {
-      hurt('Närstridsträff!');
+    if (pea.cooldown || actualDistance >= 205) continue;
+    if (actualDistance < 29) {
+      if (distance < 29) hurt('Närstridsträff!');
       pea.cooldown = 1.3;
       if (!bloo.hp) return;
     } else {
-      shots.push({x:pea.x,y:pea.y,vx:dx/distance*95,vy:dy/distance*95,age:0});
+      shots.push({x:pea.x,y:pea.y,vx:dx/Math.max(distance,1)*95,vy:dy/Math.max(distance,1)*95,age:0});
       pea.cooldown = 1.9;
     }
   }
@@ -803,6 +830,11 @@ function oval(color,x,y,rx,ry) {
 }
 function drawBloo() {
   const {x,y,fx,fy,step,flash,swing,guard}=bloo;
+  if (tearsTime > 0) {
+    oval('#c89456',x+15,y+6,4,5);
+    box('#f4d79b',x+14,y+3,2,4);
+    box('#b27644',x+15,y,1,2);
+  }
   const foot=Math.round(Math.sin(step)*2);
   oval('#593326',x,y+10,13,4);
   box('#171530',x-9,y+6+foot,6,6);
@@ -965,14 +997,20 @@ function drawEnemies() {
     const {x,y} = chest;
     const opened = openedChests.has(chest.id);
     box('#3f2a38',x-13,y-8,26,19);
-    box('#9d5d42',x-11,y-1,22,10);
-    box(opened ? '#362638' : '#e0a556',x-11,y-6,22,6);
+    box(chest.golden ? '#bd842c' : '#9d5d42',x-11,y-1,22,10);
+    box(opened ? '#362638' : chest.golden ? '#ffd75c' : '#e0a556',x-11,y-6,22,6);
     box(opened ? '#83634e' : '#fff1a6',x-2,y-1,4,5);
+    if (chest.golden && !opened) {
+      box('#fff0a2',x-10,y-6,20,2);
+      ctx.fillStyle = '#ffe792';
+      ctx.font = 'bold 9px monospace';
+      ctx.fillText('GOLDEN CHEST',x-34,y-13);
+    }
     if (nearby === chest) {
-      box('#362638',x-8,y-26,16,14);
+      box('#362638',x-8,y-(chest.golden ? 37 : 26),16,14);
       ctx.fillStyle = '#fff1a6';
       ctx.font = 'bold 10px monospace';
-      ctx.fillText('T',x-3,y-15);
+      ctx.fillText('T',x-3,y-(chest.golden ? 26 : 15));
     }
   }
   for (const arrow of arrows) {
