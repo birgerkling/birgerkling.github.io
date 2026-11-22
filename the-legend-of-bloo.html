@@ -59,6 +59,7 @@ const ladderX = 177;
 const floorScale = 3;
 const worldWidth = 480*floorScale;
 const worldHeight = 270*floorScale;
+let swordPointer = null;
 let bloo, peas, shots, broken, area, climb, last = 0;
 
 function say(message) { if (status.textContent !== message) status.textContent = message; }
@@ -86,14 +87,33 @@ function hurt(message) {
   showHealth();
   say(bloo.hp ? message : 'Bloo föll! Tryck på Börja om.');
 }
+function cameraPosition() {
+  if (area !== 'floor') return {x:0,y:0};
+  return {
+    x:Math.round(Math.max(0,Math.min(worldWidth-canvas.width,bloo.x-canvas.width/2))),
+    y:Math.round(Math.max(0,Math.min(worldHeight-canvas.height,bloo.y-canvas.height/2)))
+  };
+}
+function swordDirection(pointer) {
+  if (pointer) {
+    const rect = canvas.getBoundingClientRect();
+    const camera = cameraPosition();
+    const x = (pointer.clientX-rect.left-canvas.clientLeft)*canvas.width/canvas.clientWidth+camera.x-bloo.x;
+    const y = (pointer.clientY-rect.top-canvas.clientTop)*canvas.height/canvas.clientHeight+camera.y-bloo.y;
+    const distance = Math.hypot(x,y);
+    if (distance > 1) return {x:x/distance,y:y/distance};
+  }
+  return {x:bloo.fx,y:bloo.fy};
+}
 function inSwordRange(target) {
   const x = target.x-bloo.x, y = target.y-bloo.y;
   const distance = Math.hypot(x,y);
-  return distance < 38 && (distance < 5 || x*bloo.fx+y*bloo.fy > .4*distance);
+  return distance < 38 && (distance < 5 || x*bloo.swordAim.x+y*bloo.swordAim.y > .4*distance);
 }
 function down(...codes) { return codes.some(code => keys.has(code) || [...pointers.values()].includes(code)); }
-function attack() {
+function attack(pointer = swordPointer) {
   if (!bloo.hp || climb || bloo.guard || down('KeyF') || bloo.swing > 0) return;
+  bloo.swordAim = swordDirection(pointer);
   bloo.swing = .27;
   let hit = false;
   for (const pea of peas) {
@@ -113,7 +133,12 @@ document.addEventListener('keydown', event => {
   keys.add(event.code);
   if (!event.repeat && event.code === 'KeyE') attack();
 });
-canvas.addEventListener('click', attack);
+canvas.addEventListener('pointermove', event => {
+  if (event.pointerType === 'mouse' || event.pointerType === 'pen') swordPointer = event;
+});
+canvas.addEventListener('pointerleave', () => { swordPointer = null; });
+canvas.addEventListener('click', event => attack(event));
+
 document.addEventListener('keyup', event => keys.delete(event.code));
 function clearInputs() {
   keys.clear();
@@ -128,7 +153,7 @@ for (const button of document.querySelectorAll('[data-key]')) {
     button.setPointerCapture(event.pointerId);
     pointers.set(event.pointerId, button.dataset.key);
     button.classList.add('held');
-    if (button.dataset.key === 'KeyE') attack();
+    if (button.dataset.key === 'KeyE') attack(null);
   });
   for (const type of ['pointerup','pointercancel','lostpointercapture']) {
     button.addEventListener(type, event => {
@@ -270,7 +295,7 @@ function drawBloo() {
   if (swing || guard) {
     ctx.save();
     ctx.translate(Math.round(x),Math.round(y));
-    ctx.rotate(Math.atan2(fy,fx)+(swing ? (swing/.27-.5)*1.55 : 0));
+    ctx.rotate(swing ? Math.atan2(bloo.swordAim.y,bloo.swordAim.x)+(swing/.27-.5)*1.55 : Math.atan2(fy,fx));
     if (swing) {
       ctx.strokeStyle='#fff5cf';
       ctx.lineWidth=2;
@@ -386,10 +411,9 @@ function drawPeas() {
 
 function draw() {
   if (area === 'floor') {
-    const cameraX = Math.round(Math.max(0,Math.min(worldWidth-canvas.width,bloo.x-canvas.width/2)));
-    const cameraY = Math.round(Math.max(0,Math.min(worldHeight-canvas.height,bloo.y-canvas.height/2)));
+    const camera = cameraPosition();
     ctx.save();
-    ctx.translate(-cameraX,-cameraY);
+    ctx.translate(-camera.x,-camera.y);
     ctx.save();
     ctx.scale(floorScale,floorScale);
     drawFloor();
