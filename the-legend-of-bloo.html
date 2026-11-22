@@ -17,13 +17,14 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 .potion-slots{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:400px){.inventory-layout{grid-template-columns:1fr 1fr}.inventory-items{grid-column:1/-1}}
 #shop{max-height:calc(100dvh - 24px)}.shop-stock{display:grid;gap:6px;margin-bottom:12px}.shop-stock button{text-align:left}.shop-stock small{display:block;font-weight:400}.slot button{font-size:11px;padding:3px}
+#bow-fire{grid-column:1/-1}
 </style>
 <main>
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
 <footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD · 1 / 2 för drycker. Gå mot stegen för att klättra. R öppnar butiken när du står nära.</span><button id="shop-open" hidden>Butik · R</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
-<div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button></div></div>
+<div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button><button id="bow-fire" hidden>Bow · G</button></div></div>
 <dialog id="inventory" aria-labelledby="inventory-title">
   <h2 id="inventory-title">Inventory</h2>
   <div class="inventory-layout">
@@ -31,7 +32,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
     <section><h3>Active Weapon</h3><div class="slot equipped"><b aria-hidden="true">⚔</b><span id="gear-weapon">SWORD</span></div><h3>Active Shield</h3><div class="slot equipped"><b aria-hidden="true">⬟</b><span id="gear-shield">SHIELD</span></div></section>
     <section><h3>Active Armor</h3><div class="slots"><div class="slot"><span id="gear-upper">Upper · —</span></div><div class="slot"><span id="gear-lower">Lower · —</span></div></div></section>
     <section><h3>Active Potions</h3><div class="slots potion-slots"><div class="slot"><button data-drink>Tom</button><button data-store-potion hidden>Till Items</button></div><div class="slot"><button data-drink>Tom</button><button data-store-potion hidden>Till Items</button></div></div></section>
-    <section><h3>Active Gadget</h3><div class="slot"><span aria-label="Tom ruta">—</span></div></section>
+    <section><h3>Active Gadget</h3><div class="slot" id="gear-gadget">—</div></section>
   </div>
   <form method="dialog"><button>Stäng</button></form>
 </dialog>
@@ -39,7 +40,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
   <h2 id="shop-title">🫐 Blåbärsbutiken</h2>
   <p id="shop-message" aria-live="polite">Hej Bloo! Vad vill du köpa?</p>
   <div class="shop-actions">
-    <div class="shop-stock"><button data-buy="twig">Kvistsvärd · 8 Seeds<small>8 skada</small></button><button data-buy="thorn">Taggsvärd · 16 Seeds<small>12 skada</small></button><button data-buy="leaf">Lövsköld · 7 Seeds<small>Bredare blockering</small></button><button data-buy="shell">Nötskalssköld · 14 Seeds<small>Skyddar mot skott från alla håll</small></button><button data-buy="vest">Lövväst · 8 Seeds<small>−2 skada per träff</small></button><button data-buy="pants">Barkbyxor · 8 Seeds<small>−2 skada per träff</small></button><button data-buy="potion">Healing Potion · 5 Seeds<small>Återställer upp till 30 HP</small></button><button data-buy="speedPotion">Speed Potion · 7 Seeds<small>+50 % fart i 8 sekunder</small></button></div>
+    <div class="shop-stock"><button data-buy="bow">Bow · 12 Seeds<small>6 skada per pil · 1 sekund mellan skotten</small></button><button data-buy="twig">Kvistsvärd · 8 Seeds<small>8 skada</small></button><button data-buy="thorn">Taggsvärd · 16 Seeds<small>12 skada</small></button><button data-buy="leaf">Lövsköld · 7 Seeds<small>Bredare blockering</small></button><button data-buy="shell">Nötskalssköld · 14 Seeds<small>Skyddar mot skott från alla håll</small></button><button data-buy="vest">Lövväst · 8 Seeds<small>−2 skada per träff</small></button><button data-buy="pants">Barkbyxor · 8 Seeds<small>−2 skada per träff</small></button><button data-buy="potion">Healing Potion · 5 Seeds<small>Återställer upp till 30 HP</small></button><button data-buy="speedPotion">Speed Potion · 7 Seeds<small>+50 % fart i 8 sekunder</small></button></div>
     <form method="dialog"><button>Stäng</button></form>
   </div>
 </dialog>
@@ -59,6 +60,7 @@ const shop = document.querySelector('#shop');
 const shopOpen = document.querySelector('#shop-open');
 const shopMessage = document.querySelector('#shop-message');
 const catalog = {
+  bow: {name:'Bow',slot:'gadget',cost:12,power:6,detail:'G skjuter en pil mot musen'},
   "twig": {
     "name": "Kvistsvärd",
     "slot": "weapon",
@@ -183,6 +185,8 @@ try {
 function showSeeds() {
   seedsDisplay.textContent = '🌱 ' + seeds + ' Seeds';
 }
+let arrows = [];
+let bowCooldown = 0;
 let bloo, peas, shots, broken, area, climb, last = 0;
 
 function say(message) { if (status.textContent !== message) status.textContent = message; }
@@ -191,12 +195,15 @@ function reset() {
   area = 'counter';
   climb = null;
   shots = [];
+  arrows = [];
+  bowCooldown = 0;
   peas = peaSpawns.map((spawn,index) => ({...spawn,hp:20,cooldown:.6+index%3*.35,flash:0}));
   bloo.hp = maxHP;
   bloo.speedBoost = 0;
   bloo.sinceHit = 0;
   showHealth();
   showSeeds();
+  updateBowButton();
   shopOpen.hidden = true;
   broken = false;
   say('Slå på kexet!');
@@ -257,6 +264,7 @@ for (const button of stock) button.addEventListener('click', () => {
 });
 function saveSeeds() {
   showSeeds();
+  updateBowButton();
   try { localStorage.setItem(progressKey,JSON.stringify({seeds,owned,equipped,potions,storedPotions})); } catch {}
 }
 function equipmentButton(id, onClick, action) {
@@ -269,7 +277,7 @@ function equipmentButton(id, onClick, action) {
   return button;
 }
 function renderInventory() {
-  const activeSlots = {weapon:'SWORD',shield:'SHIELD',upper:'Upper · —',lower:'Lower · —'};
+  const activeSlots = {weapon:'SWORD',shield:'SHIELD',upper:'Upper · —',lower:'Lower · —',gadget:'—'};
   const bag = storedItems();
   for (const [slot,fallback] of Object.entries(activeSlots)) {
     const cell = document.querySelector('#gear-'+slot);
@@ -369,6 +377,37 @@ function inSwordRange(target) {
   return distance < 38 && (distance < 5 || x*bloo.swordAim.x+y*bloo.swordAim.y > .4*distance);
 }
 function down(...codes) { return codes.some(code => keys.has(code) || [...pointers.values()].includes(code)); }
+const bowButton = document.querySelector('#bow-fire');
+function updateBowButton() {
+  bowButton.hidden = equipped.gadget !== 'bow';
+}
+function fireBow(pointer = swordPointer) {
+  if (equipped.gadget !== 'bow' || bowCooldown > 0 || !bloo.hp || climb ||
+      inventory.open || shop.open || down('KeyF')) return;
+  const aim = swordDirection(pointer);
+  arrows.push({x:bloo.x,y:bloo.y,vx:aim.x*240,vy:aim.y*240,life:1});
+  bowCooldown = 1;
+  say('Bow!');
+}
+bowButton.addEventListener('pointerdown', event => {
+  event.preventDefault();
+  fireBow(event.pointerType === 'touch' ? null : swordPointer);
+});
+bowButton.addEventListener('click', event => {
+  if (!event.detail) fireBow();
+});
+function damagePea(pea,damage) {
+  pea.hp = Math.max(0,pea.hp-damage);
+  pea.flash = .18;
+  if (pea.hp) return 0;
+  pea.respawn = 10;
+  return 1+Math.floor(Math.random()*5);
+}
+function awardSeeds(reward) {
+  seeds += reward;
+  saveSeeds();
+  say('+' + reward + ' Seeds');
+}
 function attack(pointer = swordPointer) {
   if (!bloo.hp || climb || bloo.guard || down('KeyF') || bloo.swing > 0) return;
   bloo.swordAim = swordDirection(pointer);
@@ -378,23 +417,14 @@ function attack(pointer = swordPointer) {
   let reward = 0;
   for (const pea of peas) {
     if (pea.area !== area || !pea.hp || !inSwordRange(pea)) continue;
-    pea.hp = Math.max(0,pea.hp-damage);
-    pea.flash = .18;
+    reward += damagePea(pea,damage);
     hit = true;
-    if (!pea.hp) {
-      pea.respawn = 10;
-      reward += 1+Math.floor(Math.random()*5);
-    }
-  }
-  if (reward) {
-    seeds += reward;
-    saveSeeds();
   }
   if (area === 'counter' && !broken && inSwordRange(cracker)) {
     broken = true;
     say('Kexet gick sönder!');
   } else if (!reward) say(hit ? 'Pea tog ' + damage + ' skada!' : 'SWORD!');
-  if (reward) say('+' + reward + ' Seeds');
+  if (reward) awardSeeds(reward);
 }
 document.addEventListener('keydown', event => {
   if (['Digit1','Digit2','Numpad1','Numpad2'].includes(event.code) && !shop.open) {
@@ -408,6 +438,11 @@ document.addEventListener('keydown', event => {
     return;
   }
   if (shop.open || inventory.open) return;
+  if (event.code === 'KeyG') {
+    event.preventDefault();
+    if (!event.repeat) fireBow();
+    return;
+  }
   if (event.code === 'KeyR' && !event.repeat && shopNearby()) {
     event.preventDefault();
     openShop();
@@ -500,6 +535,7 @@ function update(dt) {
     if (fraction === 1) {
       area = climb.next;
       shots = [];
+      arrows = [];
       bloo.x = area === 'counter' ? ladderX : ladderX*floorScale;
       bloo.y = area === 'counter' ? 233 : 106*floorScale;
       climb = null;
@@ -532,6 +568,20 @@ function update(dt) {
     bloo.step += dt*20;
   } else bloo.step = 0;
 
+  bowCooldown = Math.max(0,bowCooldown-dt);
+  arrows = arrows.filter(arrow => {
+    arrow.x += arrow.vx*dt;
+    arrow.y += arrow.vy*dt;
+    arrow.life -= dt;
+    if (!canMove(arrow.x,arrow.y) || arrow.life <= 0) return false;
+    const pea = peas.find(target => target.hp && target.area === area &&
+      Math.hypot(target.x-arrow.x,target.y-arrow.y) < 15);
+    if (!pea) return true;
+    const reward = damagePea(pea,catalog.bow.power);
+    if (reward) awardSeeds(reward);
+    else say('Pea tog 6 skada!');
+    return false;
+  });
   updatePeas(dt);
   shopOpen.hidden = !shopNearby();
 }
@@ -725,6 +775,14 @@ function drawShopkeeper() {
   ctx.textAlign = 'start';
 }
 function drawPeas() {
+  for (const arrow of arrows) {
+    ctx.save();
+    ctx.translate(Math.round(arrow.x),Math.round(arrow.y));
+    ctx.rotate(Math.atan2(arrow.vy,arrow.vx));
+    box('#e3b075',-11,-1,12,2);
+    box('#f3e9cf',0,-2,4,4);
+    ctx.restore();
+  }
   for (const pea of peas) {
     if (pea.area !== area || !pea.hp) continue;
     oval('#7c4d36',pea.x,pea.y+10,16,5);
