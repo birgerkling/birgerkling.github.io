@@ -51,8 +51,8 @@ button { padding: 10px 15px; cursor: pointer; }
 <main>
  <header><h1 data-title="OBBY.EXE" aria-label="OBBY.EXE">OBBY<span>.EXE</span></h1><div class="room" aria-live="polite">ROOM 001</div></header>
  <div class="stage">
-  <canvas width="960" height="420" aria-label="Hjälp DUDE nå dörren till höger."></canvas>
-  <div id="clear" hidden><strong role="status">ROOM 008 KLAR!</strong><button id="again">Spela igen</button></div>
+  <canvas width="960" height="420" aria-label="Hjälp DUDE hitta rätt dörr."></canvas>
+  <div id="clear" hidden><strong role="status">ROOM 010 KLAR!</strong><button id="again">Spela igen</button></div>
  </div>
  <footer>
   <div class="keyboard-controls"><kbd>A</kbd> / <kbd>←</kbd> Vänster · <kbd>D</kbd> / <kbd>→</kbd> Höger · <kbd>Mellanslag</kbd> / <kbd>↑</kbd> Hoppa</div>
@@ -100,7 +100,15 @@ const roomSevenFakes = [502, 525, 548, 571, 594, 617, 640, 663, 686, 709]
 const roomEightGap = { left: 375, right: 587 };
 const upperBridgeY = floor - 80;
 const upperBridgeEntry = 180;
-const finalRoom = 8;
+const upperBridgeGap = { left: 715, right: 810 };
+const spikeBelowBridge = { x: 735, width: 58, height: 65 };
+const startDoorX = 104;
+const exitDoorX = 880;
+const finalRoom = 10;
+const stairsStart = { x: 0, width: 132, y: floor };
+const stairsExit = { x: 890, width: 70, y: 191 };
+const stairExitDoorX = 928;
+let stairs = [];
 const glitchDuration = 260;
 const glitchColors = ['#c7ff76', '#e98dff', '#84eaff', '#a485e1'];
 const glitchPixels = [
@@ -132,11 +140,18 @@ function onInvisibleBridge() {
 }
 
 function reset() {
-  Object.assign(dude, { x: 104, y: floor, vy: 0, grounded: true, facing: 1 });
+  Object.assign(dude, { x: room === 9 ? 184 : startDoorX, y: floor, vy: 0, grounded: true, facing: 1 });
   gapLeft = initialGapLeft;
   spikeRaised = false;
   secondGapOpen = false;
   upperBridgeAccess = false;
+  if (room === 10) {
+    stairs = Array.from({ length: 10 }, (_, index) => ({
+      number: index + 1, x: 158 + index * 73, width: 53,
+      y: floor - 34 - index * 13, descent: 18, visible: false,
+      standing: 0, collapsed: false, spikeTime: 0, spikeUsed: false,
+    }));
+  }
   for (const spike of retractingSpikes) Object.assign(spike, { height: 65, lowered: false });
   trapGlitches.length = 0;
   respawnDelay = 0;
@@ -147,7 +162,7 @@ function reset() {
 
 function enterRoom(number) {
   room = number;
-  roomLabel.textContent = 'ROOM 00' + room;
+  roomLabel.textContent = 'ROOM ' + String(room).padStart(3, '0');
   releaseControls();
   reset();
 }
@@ -226,6 +241,10 @@ function update(dt) {
   const direction = Number(keys.has('KeyD')) - Number(keys.has('KeyA'));
   if (direction) dude.facing = direction;
   dude.x = Math.max(14, Math.min(946, dude.x + direction * 275 * dt));
+  if (room === 10) {
+    updateStairs(dt);
+    return;
+  }
   if (room === 2 && gapLeft === initialGapLeft && dude.y < floor &&
       dude.x > gapLeft && dude.x < gapLeft + gapWidth) {
     gapLeft += gapShift;
@@ -244,9 +263,10 @@ function update(dt) {
   const overGround = aboveSolidFloor && (!onInvisibleBridge() || dude.grounded);
   const previousY = dude.y;
   let landed = false;
-  const overUpperBridge = room === 8 && upperBridgeAccess && previousY <= upperBridgeY;
+  const overBridgeGap = dude.x > upperBridgeGap.left && dude.x < upperBridgeGap.right;
+  const overUpperBridge = room === 8 && upperBridgeAccess && previousY <= upperBridgeY && !overBridgeGap;
   const landingY = overUpperBridge ? upperBridgeY : floor;
-  if (!overGround && !overUpperBridge) dude.grounded = false;
+  if (!overUpperBridge && (!overGround || previousY < floor)) dude.grounded = false;
   if (!dude.grounded) {
     dude.vy += 1650 * dt;
     dude.y += dude.vy * dt;
@@ -257,8 +277,19 @@ function update(dt) {
       landed = true;
     }
   }
-  if (dude.y > 490) reset();
+  if (dude.y > 490 || (room === 8 && upperBridgeAccess && landed && dude.y === floor)) {
+    reset();
+    return;
+  }
   const trap = spikeTraps[room];
+  if (room === 8 && upperBridgeAccess && overBridgeGap && !spikeRaised) {
+    spikeRaised = true;
+    burstGlitch(spikeBelowBridge.x + spikeBelowBridge.width / 2, -spikeBelowBridge.height);
+  }
+  if (room === 8 && spikeRaised && hitsSpike(spikeBelowBridge)) {
+    respawnDelay = 0.35;
+    return;
+  }
   if (trap && !spikeRaised && dude.x >= trap.triggerX && dude.x <= trap.triggerEnd && dude.y <= floor) {
     spikeRaised = true;
     for (const spike of trap.spikes) burstGlitch(spike.x + spike.width / 2, -spike.height);
@@ -286,7 +317,8 @@ function update(dt) {
     }
   }
   const exitY = room === 8 ? upperBridgeY : floor;
-  if (dude.grounded && dude.y === exitY && dude.x >= 849 && dude.x <= 911) {
+  const goalDoorX = room === 9 ? startDoorX : exitDoorX;
+  if (dude.grounded && dude.y === exitY && Math.abs(dude.x - goalDoorX) <= 31) {
     if (room < finalRoom) {
       enterRoom(room + 1);
       return;
@@ -295,6 +327,70 @@ function update(dt) {
     clear.hidden = false;
     again.focus();
   }
+}
+
+function updateStairs(dt) {
+  const previousY = dude.y;
+  let support = null;
+  for (const platform of [stairsStart, ...stairs, stairsExit]) {
+    const oldY = platform.y;
+    if (platform.number) {
+      if (!platform.visible && dude.x >= platform.x - 220) {
+        platform.visible = true;
+        burstGlitch(platform.x + platform.width / 2, 20, platform.y);
+      }
+      if (!platform.visible) continue;
+      if (platform.collapsed) {
+        platform.y += 920 * dt;
+        continue;
+      }
+      const descent = Math.min(platform.descent, 23 * dt);
+      platform.y += descent;
+      platform.descent -= descent;
+    }
+    if (dude.x < platform.x || dude.x > platform.x + platform.width) continue;
+    if (dude.grounded && previousY === oldY) support = platform;
+    if (!dude.grounded && dude.vy >= 0 && previousY <= oldY &&
+        previousY + (dude.vy + 1650 * dt) * dt >= platform.y) support = platform;
+  }
+  if (support) {
+    dude.y = support.y;
+    dude.vy = 0;
+    dude.grounded = true;
+  } else {
+    dude.grounded = false;
+    dude.vy += 1650 * dt;
+    dude.y += dude.vy * dt;
+  }
+  const fragile = stairs[2];
+  fragile.standing = support === fragile ? fragile.standing + dt : 0;
+  if (!fragile.collapsed && fragile.standing > 1 + 1e-6) {
+    fragile.collapsed = true;
+    burstGlitch(fragile.x + fragile.width / 2, 44, fragile.y);
+  }
+  for (const platform of [stairs[3], stairs[4]]) {
+    platform.spikeTime = Math.max(0, platform.spikeTime - dt);
+    if (support === platform && !platform.spikeUsed) {
+      platform.spikeUsed = true;
+      platform.spikeTime = 0.5;
+      burstGlitch(platform.x + platform.width / 2, -35, platform.y);
+    }
+    const spike = stairSpike(platform);
+    if (platform.spikeTime > 0 && hitsSpike(spike)) {
+      respawnDelay = 0.35;
+      return;
+    }
+  }
+  if (dude.y > 490) reset();
+  if (support === stairsExit && Math.abs(dude.x - stairExitDoorX) <= 20) {
+    won = true;
+    clear.hidden = false;
+    again.focus();
+  }
+}
+
+function stairSpike(platform) {
+  return { x: platform.x + (platform.width - 20) / 2, width: 20, height: 35, base: platform.y };
 }
 
 function box(x, y, w, h, color) {
@@ -355,15 +451,17 @@ function door(x, label, accent, base = floor) {
 
 function hitsSpike(spike) {
   const peak = 1 - Math.abs((dude.x - spike.x) / spike.width * 2 - 1);
-  return spike.height > 0 && peak >= 0 && dude.y >= floor - spike.height * peak && dude.y <= floor;
+  const base = spike.base ?? floor;
+  return spike.height > 0 && peak >= 0 && dude.y >= base - spike.height * peak && dude.y <= base;
 }
 
 function drawSpike(spike) {
+  const base = spike.base ?? floor;
   ctx.fillStyle = '#ff638d';
   ctx.beginPath();
-  ctx.moveTo(spike.x, floor);
-  ctx.lineTo(spike.x + spike.width / 2, floor - spike.height);
-  ctx.lineTo(spike.x + spike.width, floor);
+  ctx.moveTo(spike.x, base);
+  ctx.lineTo(spike.x + spike.width / 2, base - spike.height);
+  ctx.lineTo(spike.x + spike.width, base);
   ctx.closePath();
   ctx.fill();
 }
@@ -380,7 +478,8 @@ function draw(time) {
   for (let x = 0; x < 960; x += 40) box(x, 0, 1, 420, '#ffffff09');
   for (let y = 4; y < 420; y += 40) box(0, y, 960, 1, '#ffffff09');
   let start = 0;
-  for (const gap of [...visibleGaps, { left: canvas.width, right: canvas.width }]) {
+  const floorSegments = room === 10 ? [] : [...visibleGaps, { left: canvas.width, right: canvas.width }];
+  for (const gap of floorSegments) {
     const end = gap.left;
     box(start, floor, end - start, 96, '#322844');
     box(start, floor, end - start, 4, '#a485e1');
@@ -388,9 +487,18 @@ function draw(time) {
     if (gap.right > end) box(end, floor, gap.right - end, 96, '#08070e');
     start = gap.right;
   }
+  if (room === 10) {
+    for (const platform of [stairsStart, ...stairs, stairsExit]) {
+      if (platform.number && !platform.visible) continue;
+      box(platform.x, platform.y, platform.width, 13, '#322844');
+      box(platform.x, platform.y, platform.width, 3, '#a485e1');
+      if (platform.spikeTime > 0) drawSpike(stairSpike(platform));
+    }
+  }
   drawGapGlitch(time);
   const trap = spikeTraps[room];
   if (room === 5) drawSpike(fakeSpike);
+  if (room === 8 && spikeRaised) drawSpike(spikeBelowBridge);
   if (trap && spikeRaised) trap.spikes.forEach(drawSpike);
   if (room === 7) {
     retractingSpikes.forEach(drawSpike);
@@ -398,8 +506,9 @@ function draw(time) {
     roomSevenFakes.forEach(drawSpike);
   }
   drawTrapGlitches(time);
-  door(104, 'START', '#bba4ec');
-  door(880, 'UTGÅNG', '#c7ff76', room === 8 ? upperBridgeY : floor);
+  door(startDoorX, 'START', '#bba4ec');
+  if (room === 10) door(stairExitDoorX, 'UTGÅNG', '#c7ff76', stairsExit.y);
+  else if (room !== 9) door(exitDoorX, 'UTGÅNG', '#c7ff76', room === 8 ? upperBridgeY : floor);
   ctx.save();
   ctx.translate(dude.x, dude.y);
   const walking = dude.grounded && keys.has('KeyA') !== keys.has('KeyD');
