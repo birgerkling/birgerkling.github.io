@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="sv">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Legend of Bloo</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#191427;color:#fff0cd;font:16px system-ui;display:grid;place-items:center;min-height:100dvh;padding:12px}main{width:min(920px,100%)}header,footer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}h1{font-family:Georgia,serif;margin:0 0 8px;font-size:clamp(24px,5vw,42px)}#status{font-weight:800;color:#ffcc7a}canvas{display:block;width:100%;background:#8d512f;image-rendering:pixelated;border:3px solid #593950;border-radius:9px}footer{margin-top:9px;font-size:14px}.controls{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px}.pad{display:grid;grid-template-columns:repeat(3,36px);gap:3px}.pad button{padding:0}.actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}button{background:#3c2a52;color:#fff0cd;border:1px solid #836396;border-radius:7px;min-height:34px;padding:4px 9px;font-weight:750;touch-action:none;user-select:none;cursor:pointer}button:active,button.held{background:#78517f}.up{grid-column:2}.left{grid-column:1}
+</style>
+<main>
+<header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
+<canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
+<footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD. Gå mot stegen för att klättra.</span><button id="reset" aria-label="Börja om">Börja om</button></footer>
+<div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button></div></div>
+</main>
+<script>
+'use strict';
+const canvas = document.querySelector('canvas');
+const ctx = canvas.getContext('2d');
+const status = document.querySelector('#status');
+const keys = new Set();
+const pointers = new Map();
+const valid = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyE','KeyF']);
+const obstacles = [
+  {x:22,y:31,w:103,h:65},
+  {x:328,y:152,w:118,h:80},
+  {x:202,y:28,w:64,h:30}
+];
+const cracker = {x:225,y:144};
+const pea = {x:410,y:80};
+const floorFurniture = [
+  {x:21,y:32,w:229,h:48},
+  {x:300,y:32,w:82,h:49},
+  {x:389,y:32,w:65,h:55},
+  {x:299,y:134,w:128,h:49},
+  {x:320,y:118,w:26,h:15},
+  {x:394,y:118,w:26,h:15},
+  {x:320,y:185,w:26,h:15},
+  {x:394,y:185,w:26,h:15},
+  {x:19,y:124,w:48,h:86}
+];
+const ladderX = 177;
+const floorScale = 3;
+const worldWidth = 480*floorScale;
+const worldHeight = 270*floorScale;
+let bloo, shots, nextShot, broken, area, climb, last = 0;
+
+function say(message) { if (status.textContent !== message) status.textContent = message; }
+function reset() {
+  bloo = {x:110,y:145,fx:1,fy:0,swing:0,guard:false,flash:0,step:0};
+  area = 'counter';
+  climb = null;
+  shots = [];
+  nextShot = 1.6;
+  broken = false;
+  say('Slå på kexet!');
+}
+function down(...codes) { return codes.some(code => keys.has(code) || [...pointers.values()].includes(code)); }
+function attack() {
+  if (climb || bloo.guard || down('KeyF') || bloo.swing > 0) return;
+  bloo.swing = .27;
+  const x = cracker.x - bloo.x, y = cracker.y - bloo.y;
+  if (area === 'counter' && !broken && Math.hypot(x,y) < 36 && x*bloo.fx+y*bloo.fy > .4*Math.hypot(x,y)) {
+    broken = true;
+    say('Träff! Blockera en ärta nästa gång.');
+  } else say('SWORD!');
+}
+document.addEventListener('keydown', event => {
+  if (!valid.has(event.code)) return;
+  event.preventDefault();
+  keys.add(event.code);
+  if (!event.repeat && event.code === 'KeyE') attack();
+});
+canvas.addEventListener('click', attack);
+document.addEventListener('keyup', event => keys.delete(event.code));
+function clearInputs() {
+  keys.clear();
+  pointers.clear();
+  document.querySelectorAll('.held').forEach(button => button.classList.remove('held'));
+}
+window.addEventListener('blur', clearInputs);
+document.addEventListener('visibilitychange', () => { if (document.hidden) clearInputs(); });
+for (const button of document.querySelectorAll('[data-key]')) {
+  button.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    button.setPointerCapture(event.pointerId);
+    pointers.set(event.pointerId, button.dataset.key);
+    button.classList.add('held');
+    if (button.dataset.key === 'KeyE') attack();
+  });
+  for (const type of ['pointerup','pointercancel','lostpointercapture']) {
+    button.addEventListener(type, event => {
+      pointers.delete(event.pointerId);
+      if (![...pointers.values()].includes(button.dataset.key)) button.classList.remove('held');
+    });
+  }
+}
+document.querySelector('#reset').addEventListener('click', reset);
+
+function canMove(x,y) {
+  const onFloor = area === 'floor';
+  const scale = onFloor ? floorScale : 1;
+  const furniture = onFloor ? floorFurniture : obstacles;
+  return x > 13 && x < 480*scale-13 && y > 19*scale+6 && y < 270*scale-20 &&
+    !furniture.some(o => x > o.x*scale-10 && x < (o.x+o.w)*scale+10 &&
+      y > o.y*scale-9 && y < (o.y+o.h)*scale+9);
+}
+function update(dt) {
+  bloo.swing = Math.max(0,bloo.swing-dt);
+  bloo.flash = Math.max(0,bloo.flash-dt);
+  bloo.guard = down('KeyF') && !bloo.swing;
+  const dx = Number(down('KeyD','ArrowRight')) - Number(down('KeyA','ArrowLeft'));
+  const dy = Number(down('KeyS','ArrowDown')) - Number(down('KeyW','ArrowUp'));
+  if (climb) {
+    climb.elapsed += dt;
+    const fraction = Math.min(1, climb.elapsed/.48);
+    bloo.y = climb.startY + (climb.endY-climb.startY)*fraction;
+    bloo.step += dt*24;
+    if (fraction === 1) {
+      area = climb.next;
+      bloo.x = area === 'counter' ? ladderX : ladderX*floorScale;
+      bloo.y = area === 'counter' ? 233 : 106*floorScale;
+      climb = null;
+      say(area === 'counter' ? 'Uppe på diskbänken' : 'Nere på köksgolvet');
+    }
+    return;
+  }
+  const onCounter = area === 'counter';
+  const ladderCenter = onCounter ? ladderX : ladderX*floorScale;
+  if (Math.abs(bloo.x-ladderCenter) < (onCounter ? 15 : 29) && (
+    (onCounter && dy > 0 && bloo.y >= 240) ||
+    (!onCounter && dy < 0 && bloo.y >= 82*floorScale && bloo.y <= 102*floorScale)
+  )) {
+    bloo.x = ladderCenter;
+    bloo.fx = 0;
+    bloo.fy = dy;
+    bloo.swing = 0;
+    climb = {elapsed:0,startY:bloo.y,endY:onCounter ? 263 : 68*floorScale,
+      next:area === 'counter' ? 'floor' : 'counter'};
+    say('Klättrar…');
+    return;
+  }
+  if (dx || dy) {
+    const length = Math.hypot(dx,dy);
+    if (!bloo.swing) { bloo.fx = dx/length; bloo.fy = dy/length; }
+    const speed = bloo.guard ? 55 : 106;
+    const x = bloo.x+dx/length*speed*dt, y = bloo.y+dy/length*speed*dt;
+    if (canMove(x,bloo.y)) bloo.x=x;
+    if (canMove(bloo.x,y)) bloo.y=y;
+    bloo.step += dt*20;
+  } else bloo.step = 0;
+
+  if (area === 'floor') return;
+  nextShot -= dt;
+  if (nextShot <= 0 && Math.hypot(bloo.x-pea.x,bloo.y-pea.y) < 180) {
+    const angle = Math.atan2(bloo.y-pea.y,bloo.x-pea.x);
+    shots.push({x:pea.x,y:pea.y,vx:Math.cos(angle)*95,vy:Math.sin(angle)*95,age:0});
+    nextShot = 1.9;
+  }
+  shots = shots.filter(shot => {
+    shot.x+=shot.vx*dt;
+    shot.y+=shot.vy*dt;
+    shot.age+=dt;
+    if (Math.hypot(shot.x-bloo.x,shot.y-bloo.y) < 16) {
+      if (bloo.guard && bloo.fx*shot.vx+bloo.fy*shot.vy < -30) say('SHIELD blockerade ärtan!');
+      else { bloo.flash=.24; say('Ärtträff! Vänd SHIELD mot ärtan.'); }
+      return false;
+    }
+    return shot.age < 3 && shot.x>0 && shot.x<480 && shot.y>0 && shot.y<270;
+  });
+}
+
+function box(color,x,y,w,h) { ctx.fillStyle=color; ctx.fillRect(Math.round(x),Math.round(y),w,h); }
+function oval(color,x,y,rx,ry) {
+  ctx.fillStyle=color;
+  ctx.beginPath();
+  ctx.ellipse(Math.round(x),Math.round(y),rx,ry,0,0,Math.PI*2);
+  ctx.fill();
+}
+function drawBloo() {
+  const {x,y,fx,fy,step,flash,swing,guard}=bloo;
+  const foot=Math.round(Math.sin(step)*2);
+  oval('#593326',x,y+10,13,4);
+  box('#171530',x-9,y+6+foot,6,6);
+  box('#171530',x+3,y+6-foot,6,6);
+  box('#3043a1',x-8,y+6+foot,4,4);
+  box('#3043a1',x+4,y+6-foot,4,4);
+  box('#253578',x-14,y-1,5,5);
+  box('#253578',x+9,y-1,5,5);
+  oval('#18142d',x,y-2,13,12);
+  oval(flash?'#fa95a8':'#2d3d9b',x,y-2,11,10);
+  oval(flash?'#ffc0c9':'#405fd5',x-1,y-4,9,8);
+  box('#9ebeff',x-7,y-8,4,3);
+  box('#7298ef',x-9,y-5,2,2);
+  box('#1c214f',x-4,y-14,8,3);
+  box('#252c6a',x-2,y-11,5,2);
+  if (fy>-.5) {
+    const offset=fx*4;
+    box('#161223',x-5+offset,y-4,3,5);
+    box('#161223',x+2+offset,y-4,3,5);
+    box('#ffffff',x-5+offset,y-4,1,2);
+    box('#ffffff',x+2+offset,y-4,1,2);
+    box('#ef8199',x-8+offset,y+1,3,2);
+    box('#ef8199',x+5+offset,y+1,3,2);
+    box('#231a41',x-1+offset,y+2,2,1);
+  }
+  if (swing || guard) {
+    ctx.save();
+    ctx.translate(Math.round(x),Math.round(y));
+    ctx.rotate(Math.atan2(fy,fx)+(swing ? (swing/.27-.5)*1.55 : 0));
+    if (swing) {
+      ctx.strokeStyle='#fff5cf';
+      ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(1,0,30,-.6,.5); ctx.stroke();
+      box('#392540',10,-4,20,8);
+      box('#b1c6ea',15,-3,14,6);
+      box('#ffffff',15,-3,13,2);
+      box('#d2954d',12,-6,3,12);
+    } else {
+      box('#302746',10,-9,7,18);
+      box('#d69a52',11,-8,5,16);
+      box('#cad7ec',13,-6,4,12);
+    }
+    ctx.restore();
+  }
+}
+
+function drawLadder(x,y,height) {
+  box('#51312a',x-14,y+2,30,height);
+  box('#c58a4d',x-12,y,4,height);
+  box('#c58a4d',x+9,y,4,height);
+  for (let rung=3;rung<height-1;rung+=7) {
+    box('#a86940',x-8,y+rung+1,17,3);
+    box('#f4bc73',x-8,y+rung,17,2);
+  }
+}
+
+function drawFloor() {
+  box('#423042',0,0,480,270);
+  for (let row=0;row<9;row++) for (let col=0;col<16;col++) {
+    const x=col*30, y=row*30;
+    box((row+col)%2 ? '#c4a989' : '#e7cfaa',x+1,y+1,29,29);
+    box((row+col)%2 ? '#d7bc98' : '#f3dfbb',x+2,y+2,27,2);
+  }
+  box('#58766c',0,0,480,14);
+  box('#395750',0,13,480,6);
+
+  // Diskbänk och skåp längs den övre väggen.
+  box('#593d37',21,35,229,49);
+  box('#476e63',21,62,229,18);
+  for (let x=25;x<235;x+=44) {
+    box('#61867a',x,63,40,14);
+    box('#e2bb7f',x+15,67,10,2);
+  }
+  box('#d6afa0',21,32,229,29);
+  box('#f5dfc4',21,32,229,4);
+  box('#627f8c',96,37,52,20);
+  box('#a9c1c4',99,38,46,16);
+  box('#6f9ca6',102,41,40,12);
+  box('#e4ece1',119,33,5,10);
+  box('#425865',121,46,4,3);
+  drawLadder(ladderX,58,40);
+
+  // Spis och kylskåp.
+  box('#533a37',300,34,82,49);
+  box('#d9d3c5',300,32,82,38);
+  box('#efe9d8',303,34,76,28);
+  for (const x of [318,361]) for (const y of [41,54]) {
+    box('#494651',x-7,y-4,14,8);
+    box('#88645c',x-4,y-2,8,4);
+  }
+  box('#3d3947',307,68,68,11);
+  box('#f1be82',329,69,25,2);
+  box('#4a5659',389,35,65,54);
+  box('#bdd0c7',389,32,65,53);
+  box('#e2e9d5',392,34,58,7);
+  box('#8ba6a1',392,54,58,2);
+  box('#526f6c',398,44,3,7);
+  box('#526f6c',398,61,3,12);
+  box('#e3ba72',430,58,10,11);
+  box('#f7dfaa',431,60,8,2);
+
+  // Matbord, stolar och en skänk.
+  for (const x of [320,394]) for (const y of [118,185]) {
+    box('#6f4333',x,y,26,15);
+    box('#bf8758',x+2,y+2,22,11);
+  }
+  box('#704937',299,137,128,49);
+  box('#ad704b',299,134,128,46);
+  box('#dfaa71',303,136,120,40);
+  box('#c28067',353,136,21,40);
+  oval('#fff0d1',363,155,8,6);
+  oval('#ba4d51',365,154,4,3);
+  box('#694635',19,127,48,86);
+  box('#9f6348',19,124,48,86);
+  box('#cf9863',23,127,40,79);
+  for (const y of [150,176]) box('#8d563d',23,y,40,2);
+  box('#7c9c55',34,142,16,5);
+  box('#55734f',37,133,9,11);
+
+  box('#835c66',70,209,118,30);
+  box('#ba7884',73,211,112,25);
+  for (let x=79;x<181;x+=9) box('#edaa98',x,214,3,19);
+}
+
+function draw() {
+  if (area === 'floor') {
+    const cameraX = Math.round(Math.max(0,Math.min(worldWidth-canvas.width,bloo.x-canvas.width/2)));
+    const cameraY = Math.round(Math.max(0,Math.min(worldHeight-canvas.height,bloo.y-canvas.height/2)));
+    ctx.save();
+    ctx.translate(-cameraX,-cameraY);
+    ctx.save();
+    ctx.scale(floorScale,floorScale);
+    drawFloor();
+    ctx.restore();
+    drawBloo();
+    ctx.restore();
+    return;
+  }
+  box('#552f26',0,0,480,270);
+  for (let i=0;i<9;i++) {
+    box(i%2?'#b97949':'#c58755',5,12+i*27,470,26);
+    box('#dda06a',5,12+i*27,470,1);
+  }
+  for (let i=0;i<150;i++) box(i%2?'#c18351':'#bb7a4d',(i*73)%462+7,(i*43)%235+14,3+i%17,1);
+  box('#75452e',5,255,470,11);
+  box('#edaf72',5,254,470,2);
+
+  // Skärbräda, sockertärningar och tallrik ger Bloo något att springa runt.
+  box('#754633',22,34,103,65);
+  box('#e3a567',22,30,103,65);
+  box('#f2bc7f',25,30,96,3);
+  box('#c88852',28,37,89,53);
+  box('#a66d49',30,39,85,49);
+  box('#dba36a',31,40,83,47);
+  for(let i=0;i<3;i++) {
+    box('#af784e',42+i*21,56+i*2,17,17);
+    box('#f8e7c4',41+i*21,53+i*2,17,16);
+    box('#fff7df',41+i*21,53+i*2,17,4);
+  }
+  box('#855236',202,31,64,27);
+  box('#dfbf85',202,28,64,25);
+  box('#f6dfad',207,32,54,16);
+  ctx.fillStyle='#79553b'; ctx.font='bold 9px monospace'; ctx.fillText('SOCKER',218,43);
+
+  oval('#8b5138',387,197,63,42);
+  oval('#e8d6bc',387,191,62,42);
+  oval('#fff1d7',387,188,59,38);
+  oval('#a8b6bd',387,191,46,30);
+  oval('#ece7db',387,192,44,28);
+  oval('#d6c9b6',387,203,34,12);
+
+  if (!broken) {
+    box('#855033',cracker.x-11,cracker.y-6,22,16);
+    box('#e2a44e',cracker.x-10,cracker.y-9,20,16);
+    box('#ffd381',cracker.x-8,cracker.y-7,16,12);
+    for (const dx of [-5,0,5]) for (const dy of [-4,1]) box('#ad723d',cracker.x+dx,cracker.y+dy,2,2);
+  } else {
+    for(let i=0;i<9;i++) box(i%2?'#ffd381':'#9c6237',cracker.x-15+(i*13)%30,cracker.y-8+(i*17)%16,3+i%3,3);
+  }
+  oval('#7c4d36',pea.x,pea.y+10,16,5);
+  oval('#345535',pea.x,pea.y,15,12);
+  oval('#6ea247',pea.x,pea.y-2,13,9);
+  box('#b5ce6e',pea.x-8,pea.y-8,7,3);
+  box('#243b31',pea.x-6,pea.y-2,3,4);
+  box('#243b31',pea.x+3,pea.y-2,3,4);
+  for (const shot of shots) {
+    oval('#374529',shot.x,shot.y,5,5);
+    oval('#acd557',shot.x-1,shot.y-1,3,3);
+  }
+  drawLadder(ladderX,239,29);
+  drawBloo();
+}
+function frame(now) {
+  const dt=last ? Math.min((now-last)/1000,.04) : 0;
+  last=now;
+  update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+reset();
+requestAnimationFrame(frame);
+</script>
+</html>
