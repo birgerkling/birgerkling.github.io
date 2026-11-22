@@ -30,7 +30,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
     <section class="inventory-items"><h3>Items</h3><div class="slots item-slots"><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div></div></section>
     <section><h3>Active Weapon</h3><div class="slot equipped"><b aria-hidden="true">⚔</b><span id="gear-weapon">SWORD</span></div><h3>Active Shield</h3><div class="slot equipped"><b aria-hidden="true">⬟</b><span id="gear-shield">SHIELD</span></div></section>
     <section><h3>Active Armor</h3><div class="slots"><div class="slot"><span id="gear-upper">Upper · —</span></div><div class="slot"><span id="gear-lower">Lower · —</span></div></div></section>
-    <section><h3>Active Potions</h3><div class="slots potion-slots"><div class="slot"><button data-drink>Tom</button></div><div class="slot"><button data-drink>Tom</button></div></div></section>
+    <section><h3>Active Potions</h3><div class="slots potion-slots"><div class="slot"><button data-drink>Tom</button><button data-store-potion hidden>Till Items</button></div><div class="slot"><button data-drink>Tom</button><button data-store-potion hidden>Till Items</button></div></div></section>
     <section><h3>Active Gadget</h3><div class="slot"><span aria-label="Tom ruta">—</span></div></section>
   </div>
   <form method="dialog"><button>Stäng</button></form>
@@ -112,6 +112,7 @@ const catalog = {
 const stock = document.querySelectorAll('[data-buy]');
 const itemSlots = document.querySelectorAll('.item-slots .slot');
 const potionSlots = document.querySelectorAll('[data-drink]');
+const storePotionButtons = document.querySelectorAll('[data-store-potion]');
 const progressKey = 'legend-of-bloo.progress';
 const keys = new Set();
 const pointers = new Map();
@@ -156,7 +157,8 @@ let swordPointer = null;
 let seeds = 0;
 let owned = [];
 let equipped = {};
-let potions = 0;
+let potions = [false,false];
+let storedPotions = 0;
 try {
   const saved = JSON.parse(localStorage.getItem(progressKey));
   const balance = saved?.seeds ?? Number(localStorage.getItem(seedsKey));
@@ -168,7 +170,9 @@ try {
     const slot = catalog[id].slot;
     if (saved.equipped?.[slot] === id) equipped[slot] = id;
   }
-  if (Number.isInteger(saved?.potions)) potions = Math.max(0,Math.min(2,saved.potions));
+  if (Array.isArray(saved?.potions)) potions = [!!saved.potions[0],!!saved.potions[1]];
+  else if (Number.isInteger(saved?.potions)) potions = [saved.potions >= 1,saved.potions >= 2];
+  if (Number.isSafeInteger(saved?.storedPotions)) storedPotions = Math.max(0,Math.min(itemSlots.length,saved.storedPotions));
 } catch {
   // The current session still works if storage is unavailable.
 }
@@ -210,20 +214,26 @@ function shopNearby() {
   return area === 'floor' && !climb && bloo.hp > 0 &&
     Math.hypot(bloo.x-shopkeeper.x,bloo.y-shopkeeper.y) <= 85;
 }
+function storedItems() {
+  return [...owned.filter(id => equipped[catalog[id].slot] !== id), ...Array(storedPotions).fill('potion')];
+}
+function bagFull() {
+  return storedItems().length >= itemSlots.length;
+}
 function canBuy(id) {
-  return seeds >= catalog[id].cost && !owned.includes(id) && (id !== 'potion' || potions < 2);
+  return seeds >= catalog[id].cost && !owned.includes(id) && !bagFull();
 }
 function refreshShop() {
   for (const button of stock) {
     const id = button.dataset.buy;
     button.disabled = !canBuy(id);
-    button.title = owned.includes(id) ? 'Redan köpt' : id === 'potion' && potions >= 2 ? 'Dryckesplatserna är fulla' : '';
+    button.title = owned.includes(id) ? 'Redan köpt' : bagFull() ? 'Items är fullt' : '';
   }
 }
 function openShop() {
   if (!shopNearby() || shop.open) return;
   clearInputs();
-  shopMessage.textContent = 'Hej Bloo! Du har ' + seeds + ' Seeds.';
+  shopMessage.textContent = 'Du har ' + seeds + ' Seeds. Items: ' + storedItems().length + '/' + itemSlots.length + '.';
   refreshShop();
   shop.showModal();
 }
@@ -234,18 +244,15 @@ for (const button of stock) button.addEventListener('click', () => {
   if (!shop.open || !shopNearby() || !canBuy(id)) return;
   const item = catalog[id];
   seeds -= item.cost;
-  if (id === 'potion') potions++;
-  else {
-    owned.push(id);
-    equipped[item.slot] = id;
-  }
+  if (id === 'potion') storedPotions++;
+  else owned.push(id);
   saveSeeds();
-  shopMessage.textContent = item.name + ' köpt! ' + seeds + ' Seeds kvar.';
+  shopMessage.textContent = item.name + ' lades i Items. ' + seeds + ' Seeds kvar.' + (bagFull() ? ' Items är nu fullt.' : '');
   refreshShop();
 });
 function saveSeeds() {
   showSeeds();
-  try { localStorage.setItem(progressKey,JSON.stringify({seeds,owned,equipped,potions})); } catch {}
+  try { localStorage.setItem(progressKey,JSON.stringify({seeds,owned,equipped,potions,storedPotions})); } catch {}
 }
 function equipmentButton(id, onClick, action) {
   const item = catalog[id];
@@ -258,24 +265,43 @@ function equipmentButton(id, onClick, action) {
 }
 function renderInventory() {
   const activeSlots = {weapon:'SWORD',shield:'SHIELD',upper:'Upper · —',lower:'Lower · —'};
-  const storedItems = owned.filter(id => equipped[catalog[id].slot] !== id);
+  const bag = storedItems();
   for (const [slot,fallback] of Object.entries(activeSlots)) {
     const cell = document.querySelector('#gear-'+slot);
     const id = equipped[slot];
     cell.textContent = fallback;
     if (!id) continue;
-    cell.replaceChildren(equipmentButton(id, () => {
+    const button = equipmentButton(id, () => {
+      if (bagFull()) return;
       delete equipped[slot];
       saveSeeds();
       renderInventory();
-      itemSlots[owned.filter(itemId => equipped[catalog[itemId].slot] !== itemId).indexOf(id)].firstElementChild.focus();
-    }, 'Ta av'));
+      itemSlots[storedItems().indexOf(id)].firstElementChild.focus();
+    }, 'Ta av');
+    button.disabled = bagFull();
+    if (button.disabled) button.title = 'Items är fullt';
+    cell.replaceChildren(button);
   }
   itemSlots.forEach((cell,index) => {
-    const id = storedItems[index];
+    const id = bag[index];
     cell.textContent = '—';
     if (!id) return;
     const slot = catalog[id].slot;
+    if (id === 'potion') {
+      const button = equipmentButton(id, () => {
+        const freeSlot = potions.indexOf(false);
+        if (freeSlot < 0 || !storedPotions) return;
+        storedPotions--;
+        potions[freeSlot] = true;
+        saveSeeds();
+        renderInventory();
+        storePotionButtons[freeSlot].focus();
+      }, 'Lägg i första lediga dryckesplats');
+      button.disabled = potions.every(Boolean);
+      if (button.disabled) button.title = 'Båda dryckesplatserna är fulla';
+      cell.replaceChildren(button);
+      return;
+    }
     cell.replaceChildren(equipmentButton(id, () => {
       equipped[slot] = id;
       saveSeeds();
@@ -284,13 +310,15 @@ function renderInventory() {
     }, 'Utrusta'));
   });
   potionSlots.forEach((button,index) => {
-    button.textContent = (index+1) + ' · ' + (index < potions ? 'Drick +30 HP' : 'Tom');
-    button.disabled = index >= potions || !bloo.hp || bloo.hp >= maxHP;
+    button.textContent = (index+1) + ' · ' + (potions[index] ? 'Drick +30 HP' : 'Tom');
+    button.disabled = !potions[index] || !bloo.hp || bloo.hp >= maxHP;
+    storePotionButtons[index].hidden = !potions[index];
+    storePotionButtons[index].disabled = bagFull();
   });
 }
 function drinkPotion(index) {
-  if (shop.open || climb || !bloo.hp || bloo.hp >= maxHP || index >= potions) return;
-  potions--;
+  if (shop.open || climb || !bloo.hp || bloo.hp >= maxHP || !potions[index]) return;
+  potions[index] = false;
   bloo.hp = Math.min(maxHP,bloo.hp+catalog.potion.power);
   showHealth();
   saveSeeds();
@@ -298,6 +326,14 @@ function drinkPotion(index) {
   say('Bloo drack en Healing Potion!');
 }
 potionSlots.forEach((button,index) => button.addEventListener('click', () => drinkPotion(index)));
+storePotionButtons.forEach((button,index) => button.addEventListener('click', () => {
+  if (!inventory.open || !potions[index] || bagFull()) return;
+  potions[index] = false;
+  storedPotions++;
+  saveSeeds();
+  renderInventory();
+  itemSlots[storedItems().length-1].firstElementChild.focus();
+}));
 function cameraPosition() {
   if (area !== 'floor') return {x:0,y:0};
   return {
