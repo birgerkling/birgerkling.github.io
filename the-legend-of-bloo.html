@@ -900,7 +900,10 @@ function drawEnemies() {
   for (const pea of enemies) {
     if (pea.area !== area || !pea.hp) continue;
     if (pea.egg) {
-      const {x,y} = pea;
+      ctx.save();
+      ctx.translate(Math.round(pea.x),Math.round(pea.y));
+      ctx.scale(1.18,1.18);
+      const x = 0, y = 0;
       const reach = pea.punch > 0 ? 4 : 0;
       oval('#395875',x,y+12,13,4);
       oval('#654c49',x,y-2,12,15);
@@ -915,6 +918,7 @@ function drawEnemies() {
         box('#fff1d7',gloveX-3,y,4,2);
         box('#fff1d7',gloveX,y+2,3,2);
       }
+      ctx.restore();
     } else {
       oval('#7c4d36',pea.x,pea.y+10,16,5);
       oval('#345535',pea.x,pea.y,15,12);
@@ -923,8 +927,8 @@ function drawEnemies() {
       box('#243b31',pea.x-6,pea.y-2,3,4);
       box('#243b31',pea.x+3,pea.y-2,3,4);
     }
-    box('#303b2b',pea.x-12,pea.y-19,24,4);
-    box('#a7dc65',pea.x-11,pea.y-18,22*pea.hp/pea.maxHP,2);
+    box('#303b2b',pea.x-12,pea.y-(pea.egg ? 25 : 19),24,4);
+    box('#a7dc65',pea.x-11,pea.y-(pea.egg ? 24 : 18),22*pea.hp/pea.maxHP,2);
   }
   for (const shot of shots) {
     oval('#374529',shot.x,shot.y,5,5);
