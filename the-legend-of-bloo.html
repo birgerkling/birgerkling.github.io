@@ -649,6 +649,10 @@ function update(dt) {
     return;
   }
   if (area === 'boss' && dy > 0 && Math.abs(bloo.x-240) < 37 && bloo.y >= 239) {
+    if (onion.hp > 0) {
+      say('Dörren är låst tills Onion Lord är besegrad!');
+      return;
+    }
     area = 'fridge';
     Object.assign(bloo,{x:bossDoorX*fridgeScale,y:42*fridgeScale});
     arrows = [];
@@ -1102,7 +1106,7 @@ function drawOnionRoom() {
   ctx.font = 'bold 10px monospace';
   ctx.fillStyle = '#f5d59e';
   ctx.textAlign = 'center';
-  ctx.fillText('↓ KYLEN',240,260);
+  ctx.fillText(onion.hp > 0 ? 'LÅST' : '↓ KYLEN',240,260);
   if (onion.hp) {
     const {x,y,fx,fy} = onion;
     if (onion.windup || onion.impact) {
