@@ -106,12 +106,15 @@ const startDoorX = 104;
 const exitDoorX = 880;
 const finalRoom = 10;
 const stairsStart = { x: 0, width: 132, y: floor };
-const stairsExit = { x: 890, width: 70, y: 288 };
+const stairsExit = { x: 890, width: 70, y: 246 };
 const stairExitDoorX = 928;
+const stairExitRevealX = 665;
+const holeRimWidth = 20;
 const stairFallSpeed = 34;
 const stairSpawnInterval = 0.48;
 let stairs = [];
 let stairsTime = 0;
+let stairsExitVisible = false;
 const glitchDuration = 260;
 const glitchColors = ['#c7ff76', '#e98dff', '#84eaff', '#a485e1'];
 const glitchPixels = [
@@ -150,8 +153,9 @@ function reset() {
   upperBridgeAccess = false;
   if (room === 10) {
     stairsTime = 0;
+    stairsExitVisible = false;
     stairs = Array.from({ length: 10 }, (_, index) => ({
-      number: index + 1, x: 158 + index * 73, width: 53,
+      number: index + 1, x: 158 + index * 73, width: 66,
       y: -13, visible: false,
       standing: 0, collapsed: false, spikeTime: 0, spikeUsed: false,
       holeTimer: null, holeOpen: false,
@@ -336,6 +340,10 @@ function update(dt) {
 
 function updateStairs(dt) {
   stairsTime += dt;
+  if (!stairsExitVisible && dude.x >= stairExitRevealX) {
+    stairsExitVisible = true;
+    burstGlitch(stairExitDoorX, -65, stairsExit.y);
+  }
   const previousY = dude.y;
   const holeStep = stairs[6];
   if (holeStep.holeTimer !== null && !holeStep.holeOpen) {
@@ -347,6 +355,7 @@ function updateStairs(dt) {
   }
   let support = null;
   for (const platform of [stairsStart, ...stairs, stairsExit]) {
+    if (platform === stairsExit && !stairsExitVisible) continue;
     const oldY = platform.y;
     if (platform.number) {
       if (!platform.visible && stairsTime >= (platform.number - 1) * stairSpawnInterval) {
@@ -362,7 +371,8 @@ function updateStairs(dt) {
       if (platform.y > canvas.height) continue;
     }
     if (dude.x < platform.x || dude.x > platform.x + platform.width) continue;
-    if (platform.holeOpen && dude.x > platform.x + 14 && dude.x < platform.x + platform.width - 14) continue;
+    if (platform.holeOpen && dude.x > platform.x + holeRimWidth &&
+        dude.x < platform.x + platform.width - holeRimWidth) continue;
     if (dude.grounded && previousY === oldY) support = platform;
     if (!dude.grounded && dude.vy >= 0 && previousY <= oldY &&
         previousY + (dude.vy + 1650 * dt) * dt >= platform.y) support = platform;
@@ -522,9 +532,10 @@ function draw(time) {
     voidShade.addColorStop(1, '#08070e');
     box(0, 340, canvas.width, canvas.height - 340, voidShade);
     for (const platform of [stairsStart, ...stairs, stairsExit]) {
+      if (platform === stairsExit && !stairsExitVisible) continue;
       if (platform.number && (!platform.visible || platform.y > canvas.height)) continue;
       const segments = platform.holeOpen
-        ? [[platform.x, 14], [platform.x + platform.width - 14, 14]]
+        ? [[platform.x, holeRimWidth], [platform.x + platform.width - holeRimWidth, holeRimWidth]]
         : [[platform.x, platform.width]];
       for (const [x, width] of segments) {
         box(x, platform.y, width, 13, '#322844');
@@ -546,7 +557,9 @@ function draw(time) {
   }
   drawTrapGlitches(time);
   door(startDoorX, 'START', '#bba4ec');
-  if (room === 10) door(stairExitDoorX, 'UTGÅNG', '#c7ff76', stairsExit.y);
+  if (room === 10) {
+    if (stairsExitVisible) door(stairExitDoorX, 'UTGÅNG', '#c7ff76', stairsExit.y);
+  }
   else if (room !== 9) door(exitDoorX, 'UTGÅNG', '#c7ff76', room === 8 ? upperBridgeY : floor);
   ctx.save();
   ctx.translate(dude.x, dude.y);
