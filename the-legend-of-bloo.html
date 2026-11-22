@@ -36,7 +36,6 @@ const shop = document.querySelector('#shop');
 const shopOpen = document.querySelector('#shop-open');
 const shopMessage = document.querySelector('#shop-message');
 const buyJuice = document.querySelector('#buy-juice');
-const shopkeeper = {x:1090,y:620};
 const juiceCost = 5;
 const juiceHeal = 30;
 const keys = new Set();
@@ -75,6 +74,7 @@ const floorFurniture = [
 ];
 const ladderX = 177;
 const floorScale = 3;
+const shopkeeper = {x:ladderX*floorScale+100,y:106*floorScale+8};
 const worldWidth = 480*floorScale;
 const worldHeight = 270*floorScale;
 let swordPointer = null;
