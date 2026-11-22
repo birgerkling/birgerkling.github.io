@@ -20,13 +20,16 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 #bow-fire{grid-column:1/-1}
 #accounts{max-height:calc(100dvh - 24px)}#saved-games button[aria-current="true"]{border-color:#f2c782}
 #discard-confirm{padding:8px 12px;margin:8px 0;border:1px solid #c28c91;background:#492e47}#discard-confirm p{margin:0 0 7px}.item-slots .slot{gap:3px}.discard-item{color:#ffd4d6}
+#joystick{display:none;width:94px;height:94px;flex:none;border:2px solid #836396;border-radius:50%;background:radial-gradient(circle,#402f58,#281d3b);touch-action:none;user-select:none;place-items:center}
+#joystick span{width:39px;height:39px;border:2px solid #b6a2d5;border-radius:50%;background:#624b87;pointer-events:none}
+@media(pointer:coarse){.pad{display:none}#joystick{display:grid}}
 </style>
 <main>
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
 <footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra. R öppnar butiken · T öppnar kistor när du står nära.</span><button id="chest-open" hidden>Öppna kista · T</button><button id="shop-open" hidden>Butik · R</button><button id="accounts-open" aria-haspopup="dialog">Accounts</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
-<div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button><button id="bow-fire" hidden>Bow · Mellanslag</button></div></div>
+<div class="controls"><div id="joystick" role="group" aria-label="Joystick. Dra för att styra Bloo."><span aria-hidden="true"></span></div><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button><button id="bow-fire" hidden>Bow · Mellanslag</button></div></div>
 <dialog id="accounts" aria-labelledby="accounts-title">
   <h2 id="accounts-title">Accounts</h2>
   <p id="accounts-message" role="status"></p>
@@ -711,7 +714,41 @@ canvas.addEventListener('pointerleave', () => { swordPointer = null; });
 canvas.addEventListener('click', event => attack(event));
 
 document.addEventListener('keyup', event => keys.delete(event.code));
+const joystick = document.querySelector('#joystick');
+const joystickKnob = joystick.firstElementChild;
+const stick = {pointer:null,x:0,y:0};
+function resetStick() {
+  stick.pointer = null;
+  stick.x = stick.y = 0;
+  joystickKnob.style.transform = '';
+}
+function moveStick(event) {
+  if (event.pointerId !== stick.pointer) return;
+  const rect = joystick.getBoundingClientRect();
+  const x = event.clientX-rect.left-rect.width/2;
+  const y = event.clientY-rect.top-rect.height/2;
+  const distance = Math.hypot(x,y);
+  const radius = rect.width*.29;
+  const limit = Math.max(distance,radius);
+  stick.x = distance > 5 ? x/limit : 0;
+  stick.y = distance > 5 ? y/limit : 0;
+  joystickKnob.style.transform = 'translate('+stick.x*radius+'px,'+stick.y*radius+'px)';
+}
+joystick.addEventListener('pointerdown', event => {
+  if (stick.pointer !== null) return;
+  event.preventDefault();
+  stick.pointer = event.pointerId;
+  joystick.setPointerCapture(event.pointerId);
+  moveStick(event);
+});
+joystick.addEventListener('pointermove',moveStick);
+for (const type of ['pointerup','pointercancel','lostpointercapture']) {
+  joystick.addEventListener(type,event => {
+    if (event.pointerId === stick.pointer) resetStick();
+  });
+}
 function clearInputs() {
+  resetStick();
   keys.clear();
   pointers.clear();
   document.querySelectorAll('.held').forEach(button => button.classList.remove('held'));
@@ -781,8 +818,8 @@ function update(dt) {
   bloo.swing = Math.max(0,bloo.swing-dt);
   bloo.flash = Math.max(0,bloo.flash-dt);
   bloo.guard = down('KeyF') && !bloo.swing;
-  const dx = Number(down('KeyD','ArrowRight')) - Number(down('KeyA','ArrowLeft'));
-  const dy = Number(down('KeyS','ArrowDown')) - Number(down('KeyW','ArrowUp'));
+  const dx = Number(down('KeyD','ArrowRight')) - Number(down('KeyA','ArrowLeft')) + stick.x;
+  const dy = Number(down('KeyS','ArrowDown')) - Number(down('KeyW','ArrowUp')) + stick.y;
   if (climb) {
     climb.elapsed += dt;
     const fraction = Math.min(1, climb.elapsed/.48);
@@ -874,7 +911,7 @@ function update(dt) {
   if (dx || dy) {
     const length = Math.hypot(dx,dy);
     if (!bloo.swing) { bloo.fx = dx/length; bloo.fy = dy/length; }
-    const speed = (bloo.guard ? 55 : 106) * (bloo.speedBoost > 0 ? catalog.speedPotion.power : 1);
+    const speed = Math.min(1,length) * (bloo.guard ? 55 : 106) * (bloo.speedBoost > 0 ? catalog.speedPotion.power : 1);
     const x = bloo.x+dx/length*speed*dt, y = bloo.y+dy/length*speed*dt;
     if (canMove(x,bloo.y)) bloo.x=x;
     if (canMove(bloo.x,y)) bloo.y=y;
