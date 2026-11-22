@@ -395,12 +395,12 @@ function updateStairs(dt) {
   }
   for (const platform of [stairs[3], stairs[4]]) {
     platform.spikeTime = Math.max(0, platform.spikeTime - dt);
+    const spike = stairSpike(platform);
     if (support === platform && !platform.spikeUsed) {
       platform.spikeUsed = true;
       platform.spikeTime = 0.5;
-      burstGlitch(platform.x + platform.width / 2, -35, platform.y);
+      burstGlitch(spike.x + spike.width / 2, -spike.height, platform.y);
     }
-    const spike = stairSpike(platform);
     if (platform.spikeTime > 0 && hitsSpike(spike)) {
       respawnDelay = 0.35;
       return;
@@ -424,7 +424,8 @@ function updateStairs(dt) {
 }
 
 function stairSpike(platform) {
-  return { x: platform.x + (platform.width - 20) / 2, width: 20, height: 35, base: platform.y };
+  const width = 20;
+  return { x: platform.x + platform.width - width, width, height: 35, base: platform.y };
 }
 
 function edgeSpikes(platform) {
