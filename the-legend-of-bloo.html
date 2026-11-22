@@ -19,6 +19,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 #shop{max-height:calc(100dvh - 24px)}.shop-stock{display:grid;gap:6px;margin-bottom:12px}.shop-stock button{text-align:left}.shop-stock small{display:block;font-weight:400}.slot button{font-size:11px;padding:3px}
 #bow-fire{grid-column:1/-1}
 #accounts{max-height:calc(100dvh - 24px)}#saved-games button[aria-current="true"]{border-color:#f2c782}
+#discard-confirm{padding:8px 12px;margin:8px 0;border:1px solid #c28c91;background:#492e47}#discard-confirm p{margin:0 0 7px}.item-slots .slot{gap:3px}.discard-item{color:#ffd4d6}
 </style>
 <main>
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
@@ -38,6 +39,11 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 </dialog>
 <dialog id="inventory" aria-labelledby="inventory-title">
   <h2 id="inventory-title">Inventory</h2>
+  <div id="discard-confirm" hidden>
+    <p id="discard-message"></p>
+    <button type="button" id="discard-yes">Ja, ta bort</button>
+    <button type="button" id="discard-no">Avbryt</button>
+  </div>
   <div class="inventory-layout">
     <section class="inventory-items"><h3>Items</h3><div class="slots item-slots"><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div></div></section>
     <section><h3>Active Weapon</h3><div class="slot equipped"><b aria-hidden="true">⚔</b><span id="gear-weapon">SWORD</span></div><h3>Active Shield</h3><div class="slot equipped"><b aria-hidden="true">⬟</b><span id="gear-shield">SHIELD</span></div></section>
@@ -451,7 +457,47 @@ function equipmentButton(id, onClick, action) {
   button.addEventListener('click',onClick);
   return button;
 }
+const discardPanel = document.querySelector('#discard-confirm');
+const discardMessage = document.querySelector('#discard-message');
+const discardYes = document.querySelector('#discard-yes');
+const discardNo = document.querySelector('#discard-no');
+let pendingDiscard = null;
+
+function cancelDiscard() {
+  const pending = pendingDiscard;
+  pendingDiscard = null;
+  discardPanel.hidden = true;
+  return pending;
+}
+discardNo.addEventListener('click', () => cancelDiscard()?.button.focus());
+discardYes.addEventListener('click', () => {
+  const pending = cancelDiscard();
+  if (!pending || !inventory.open || !storedItems().includes(pending.id)) return;
+  const {id} = pending;
+  const items = isPotion(id) ? storedPotions : owned;
+  items.splice(items.indexOf(id),1);
+  saveSeeds();
+  renderInventory();
+  inventory.querySelector('form button').focus();
+  say(catalog[id].name + ' togs bort.');
+});
+inventory.addEventListener('close',cancelDiscard);
+
+function discardButton(id) {
+  const button = document.createElement('button');
+  button.className = 'discard-item';
+  button.textContent = 'Ta bort';
+  button.setAttribute('aria-label','Ta bort ' + catalog[id].name);
+  button.addEventListener('click', () => {
+    pendingDiscard = {id,button};
+    discardMessage.textContent = 'Ta bort ' + catalog[id].name + ' permanent?';
+    discardPanel.hidden = false;
+    discardNo.focus();
+  });
+  return button;
+}
 function renderInventory() {
+  cancelDiscard();
   const activeSlots = {weapon:'SWORD',shield:'SHIELD',upper:'Upper · —',lower:'Lower · —',gadget:'—'};
   const bag = storedItems();
   for (const [slot,fallback] of Object.entries(activeSlots)) {
@@ -488,7 +534,7 @@ function renderInventory() {
       }, 'Lägg i första lediga dryckesplats');
       button.disabled = potions.every(Boolean);
       if (button.disabled) button.title = 'Båda dryckesplatserna är fulla';
-      cell.replaceChildren(button);
+      cell.replaceChildren(button,discardButton(id));
       return;
     }
     cell.replaceChildren(equipmentButton(id, () => {
@@ -496,7 +542,7 @@ function renderInventory() {
       saveSeeds();
       renderInventory();
       document.querySelector('#gear-'+slot+' button').focus();
-    }, 'Utrusta'));
+    }, 'Utrusta'),discardButton(id));
   });
   potionSlots.forEach((button,index) => {
     const id = potions[index];
