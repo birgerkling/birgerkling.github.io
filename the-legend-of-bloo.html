@@ -18,13 +18,24 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 @media(max-width:400px){.inventory-layout{grid-template-columns:1fr 1fr}.inventory-items{grid-column:1/-1}}
 #shop{max-height:calc(100dvh - 24px)}.shop-stock{display:grid;gap:6px;margin-bottom:12px}.shop-stock button{text-align:left}.shop-stock small{display:block;font-weight:400}.slot button{font-size:11px;padding:3px}
 #bow-fire{grid-column:1/-1}
+#accounts{max-height:calc(100dvh - 24px)}#saved-games button[aria-current="true"]{border-color:#f2c782}
 </style>
 <main>
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
-<footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra. R öppnar butiken · T öppnar kistor när du står nära.</span><button id="chest-open" hidden>Öppna kista · T</button><button id="shop-open" hidden>Butik · R</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
+<footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra. R öppnar butiken · T öppnar kistor när du står nära.</span><button id="chest-open" hidden>Öppna kista · T</button><button id="shop-open" hidden>Butik · R</button><button id="accounts-open" aria-haspopup="dialog">Accounts</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
 <div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button><button id="bow-fire" hidden>Bow · Mellanslag</button></div></div>
+<dialog id="accounts" aria-labelledby="accounts-title">
+  <h2 id="accounts-title">Accounts</h2>
+  <p id="accounts-message" role="status"></p>
+  <div id="saved-games" class="shop-stock"></div>
+  <div class="shop-actions">
+    <button id="save-game">Spara spelet</button>
+    <button id="new-game">Starta nytt spel</button>
+    <form method="dialog"><button>Tillbaka</button></form>
+  </div>
+</dialog>
 <dialog id="inventory" aria-labelledby="inventory-title">
   <h2 id="inventory-title">Inventory</h2>
   <div class="inventory-layout">
@@ -193,12 +204,17 @@ let potions = [false,false];
 let storedPotions = [];
 const isPotion = id => Object.hasOwn(catalog,id) && catalog[id].slot === 'potion';
 const restorePotion = id => id === true ? 'potion' : isPotion(id) ? id : false;
-try {
-  const saved = JSON.parse(localStorage.getItem(progressKey));
+function restoreProgress(saved) {
+  seeds = 0;
+  owned = [];
+  equipped = {};
+  potions = [false,false];
+  storedPotions = [];
+  openedChests.clear();
   if (Array.isArray(saved?.openedChests)) {
     for (const chest of chests) if (saved.openedChests.includes(chest.id)) openedChests.add(chest.id);
   }
-  const balance = saved?.seeds ?? Number(localStorage.getItem(seedsKey));
+  const balance = saved?.seeds;
   if (Number.isSafeInteger(balance) && balance >= 0) seeds = balance;
   if (Array.isArray(saved?.owned)) {
     owned = [...new Set(saved.owned.filter(id => Object.hasOwn(catalog,id) && !isPotion(id)))];
@@ -211,8 +227,6 @@ try {
   else if (Number.isInteger(saved?.potions)) potions = [restorePotion(saved.potions >= 1),restorePotion(saved.potions >= 2)];
   if (Array.isArray(saved?.storedPotions)) storedPotions = saved.storedPotions.filter(isPotion).slice(0,itemSlots.length);
   else if (Number.isSafeInteger(saved?.storedPotions)) storedPotions = Array(Math.max(0,Math.min(itemSlots.length,saved.storedPotions))).fill('potion');
-} catch {
-  // The current session still works if storage is unavailable.
 }
 function showSeeds() {
   seedsDisplay.textContent = '🌱 ' + seeds + ' Seeds';
@@ -326,10 +340,84 @@ for (const button of stock) button.addEventListener('click', () => {
   shopMessage.textContent = item.name + ' lades i Items. ' + seeds + ' Seeds kvar.' + (bagFull() ? ' Items är nu fullt.' : '');
   refreshShop();
 });
+const accounts = document.querySelector('#accounts');
+const accountsMessage = document.querySelector('#accounts-message');
+const savedGames = document.querySelector('#saved-games');
+const accountsKey = 'legend-of-bloo.accounts.v1';
+let games = {};
+let activeGame = '1';
+let lastAutoSave = 0;
+
+function saveGame() {
+  games[activeGame] = {seeds,owned:[...owned],equipped:{...equipped},potions:[...potions],
+    storedPotions:[...storedPotions],openedChests:[...openedChests],
+    world:{area,bloo:{...bloo,guard:false,swing:0},broken,onion:onion && {...onion},
+      enemies:enemies.map(enemy => ({...enemy})),climb:climb && {...climb},bowCooldown,tearsTime,tearsCooldown}};
+  try {
+    localStorage.setItem(accountsKey,JSON.stringify({activeGame,games}));
+    return true;
+  } catch {
+    return false;
+  }
+}
+function loadGame(id) {
+  activeGame = id;
+  const saved = games[id];
+  restoreProgress(saved);
+  reset();
+  const world = saved?.world;
+  if (world && ['counter','floor','fridge','boss'].includes(world.area) &&
+      (world.area !== 'boss' || world.onion)) {
+    ({area,bloo,broken,onion,enemies,climb,bowCooldown,tearsTime,tearsCooldown} = world);
+    bloo = {...bloo};
+    enemies = enemies.map(enemy => ({...enemy}));
+    onion = onion && {...onion};
+    climb = climb && {...climb};
+    showHealth();
+    say(bloo.hp ? 'Spel ' + id + ' fortsätter' : 'Bloo föll! Tryck på Börja om.');
+  }
+  clearInputs();
+}
+function renderAccounts(message) {
+  accountsMessage.textContent = message;
+  savedGames.replaceChildren();
+  for (const [id,game] of Object.entries(games)) {
+    const button = document.createElement('button');
+    const current = id === activeGame;
+    button.textContent = 'Spel ' + id + ' · ' + (game.seeds ?? 0) + ' Seeds' + (current ? ' · Aktivt' : ' · Fortsätt');
+    if (current) button.setAttribute('aria-current','true');
+    button.addEventListener('click', () => {
+      saveGame();
+      loadGame(id);
+      saveGame();
+      accounts.close();
+    });
+    savedGames.append(button);
+  }
+}
+document.querySelector('#accounts-open').addEventListener('click', () => {
+  clearInputs();
+  const saved = saveGame();
+  renderAccounts(saved ? 'Spel ' + activeGame + ' sparat.' : 'Webbläsaren kunde inte spara spelet.');
+  accounts.showModal();
+});
+accounts.addEventListener('close',clearInputs);
+document.querySelector('#save-game').addEventListener('click', () => {
+  const saved = saveGame();
+  renderAccounts(saved ? 'Spel ' + activeGame + ' sparat.' : 'Webbläsaren kunde inte spara spelet.');
+});
+document.querySelector('#new-game').addEventListener('click', () => {
+  saveGame();
+  const id = String(Math.max(0,...Object.keys(games).map(Number))+1);
+  loadGame(id);
+  saveGame();
+  accounts.close();
+});
+
 function saveSeeds() {
   showSeeds();
   updateBowButton();
-  try { localStorage.setItem(progressKey,JSON.stringify({seeds,owned,equipped,potions,storedPotions,openedChests:[...openedChests]})); } catch {}
+  saveGame();
 }
 function equipmentButton(id, onClick, action) {
   const item = catalog[id];
@@ -513,6 +601,7 @@ function attack(pointer = swordPointer) {
   if (reward) awardSeeds(reward);
 }
 document.addEventListener('keydown', event => {
+  if (accounts.open) return;
   if (['Digit1','Digit2','Numpad1','Numpad2'].includes(event.code) && !shop.open) {
     event.preventDefault();
     if (!event.repeat) drinkPotion(Number(event.code.slice(-1))-1);
@@ -595,7 +684,7 @@ function canMove(x,y) {
       y > o.y*scale-9 && y < (o.y+o.h)*scale+9);
 }
 function update(dt) {
-  if (shop.open || inventory.open) return;
+  if (accounts.open || shop.open || inventory.open) return;
   for (const pea of enemies) {
     if (pea.hp) continue;
     pea.respawn -= dt;
@@ -1236,9 +1325,28 @@ function frame(now) {
   update(dt);
   chestButton.hidden = !nearbyChest();
   draw();
+  if (!accounts.open && now-lastAutoSave >= 5000) {
+    lastAutoSave = now;
+    saveGame();
+  }
   requestAnimationFrame(frame);
 }
-reset();
+
+try {
+  const saved = JSON.parse(localStorage.getItem(accountsKey));
+  if (saved?.games && Object.hasOwn(saved.games,saved.activeGame)) {
+    games = saved.games;
+    activeGame = saved.activeGame;
+  } else {
+    games['1'] = JSON.parse(localStorage.getItem(progressKey)) ??
+      {seeds:Number(localStorage.getItem(seedsKey))};
+  }
+} catch {
+  // The game also supports sessions without browser storage.
+}
+loadGame(activeGame);
+saveGame();
+window.addEventListener('pagehide',saveGame);
 requestAnimationFrame(frame);
 </script>
 </html>
