@@ -23,7 +23,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
-<footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra och följ vägvisaren FRYSEN på köksgolvet. R öppnar butiken när du står nära.</span><button id="shop-open" hidden>Butik · R</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
+<footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra och följ vägvisaren KYLEN på köksgolvet. R öppnar butiken när du står nära.</span><button id="shop-open" hidden>Butik · R</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
 <div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button><button id="bow-fire" hidden>Bow · Mellanslag</button></div></div>
 <dialog id="inventory" aria-labelledby="inventory-title">
   <h2 id="inventory-title">Inventory</h2>
@@ -126,14 +126,18 @@ const obstacles = [
   {x:202,y:28,w:64,h:30}
 ];
 const cracker = {x:225,y:144};
-const peaSpawns = [
+const enemySpawns = [
   {area:'counter',x:410,y:80},
   {area:'counter',x:290,y:191},
   {area:'floor',x:252,y:328},
   {area:'floor',x:734,y:357},
   {area:'floor',x:1125,y:300},
   {area:'floor',x:836,y:660},
-  {area:'floor',x:1215,y:684}
+  {area:'floor',x:1215,y:684},
+  {area:'fridge',x:231,y:164,egg:true},
+  {area:'fridge',x:110,y:76,egg:true},
+  {area:'fridge',x:350,y:195,egg:true},
+  {area:'fridge',x:437,y:91,egg:true}
 ];
 const maxHP = 100;
 const swordDamage = 5;
@@ -151,13 +155,14 @@ const floorFurniture = [
   {x:394,y:185,w:26,h:15},
   {x:19,y:124,w:48,h:86}
 ];
-const freezerDoor = {x:422,y:87};
-const freezerExit = {x:240};
-const freezerBlocks = [
-  {x:39,y:40,w:110,h:47},
-  {x:325,y:53,w:112,h:54},
-  {x:92,y:148,w:77,h:40},
-  {x:310,y:155,w:88,h:45}
+const fridgeDoor = {x:422,y:87};
+const fridgeExit = {x:240};
+const fridgeBlocks = [
+  {x:151,y:19,w:18,h:167},
+  {x:297,y:79,w:20,h:191},
+  {x:383,y:19,w:18,h:171},
+  {x:14,y:112,w:65,h:18},
+  {x:207,y:111,w:90,h:17}
 ];
 const ladderX = 177;
 const floorScale = 3;
@@ -195,7 +200,7 @@ function showSeeds() {
 }
 let arrows = [];
 let bowCooldown = 0;
-let bloo, peas, shots, broken, area, climb, last = 0;
+let bloo, enemies, shots, broken, area, climb, last = 0;
 
 function say(message) { if (status.textContent !== message) status.textContent = message; }
 function reset() {
@@ -205,7 +210,7 @@ function reset() {
   shots = [];
   arrows = [];
   bowCooldown = 0;
-  peas = peaSpawns.map((spawn,index) => ({...spawn,hp:20,cooldown:.6+index%3*.35,flash:0}));
+  enemies = enemySpawns.map((spawn,index) => ({...spawn,maxHP:spawn.egg ? 50 : 20,hp:spawn.egg ? 50 : 20,homeX:spawn.x,homeY:spawn.y,cooldown:.6+index%3*.35,flash:0}));
   bloo.hp = maxHP;
   bloo.speedBoost = 0;
   bloo.sinceHit = 0;
@@ -221,9 +226,9 @@ function showHealth() {
   const label = Math.ceil(bloo.hp) + ' / ' + maxHP;
   if (healthValue.textContent !== label) healthValue.textContent = label;
 }
-function hurt(message) {
+function hurt(message,baseDamage = peaDamage) {
   const armor = (catalog[equipped.upper]?.power ?? 0) + (catalog[equipped.lower]?.power ?? 0);
-  const damage = peaDamage-armor;
+  const damage = baseDamage-armor;
   bloo.hp = Math.max(0,bloo.hp-damage);
   bloo.sinceHit = 0;
   bloo.flash = .24;
@@ -404,7 +409,7 @@ bowButton.addEventListener('pointerdown', event => {
 bowButton.addEventListener('click', event => {
   if (!event.detail) fireBow();
 });
-function damagePea(pea,damage) {
+function damageEnemy(pea,damage) {
   pea.hp = Math.max(0,pea.hp-damage);
   pea.flash = .18;
   if (pea.hp) return 0;
@@ -421,17 +426,17 @@ function attack(pointer = swordPointer) {
   bloo.swordAim = swordDirection(pointer);
   bloo.swing = .27;
   const damage = catalog[equipped.weapon]?.power ?? swordDamage;
-  let hit = false;
+  let hit = null;
   let reward = 0;
-  for (const pea of peas) {
+  for (const pea of enemies) {
     if (pea.area !== area || !pea.hp || !inSwordRange(pea)) continue;
-    reward += damagePea(pea,damage);
-    hit = true;
+    reward += damageEnemy(pea,damage);
+    hit = pea;
   }
   if (area === 'counter' && !broken && inSwordRange(cracker)) {
     broken = true;
     say('Kexet gick sönder!');
-  } else if (!reward) say(hit ? 'Pea tog ' + damage + ' skada!' : 'SWORD!');
+  } else if (!reward) say(hit ? (hit.egg ? 'Egg' : 'Pea') + ' tog ' + damage + ' skada!' : 'SWORD!');
   if (reward) awardSeeds(reward);
 }
 document.addEventListener('keydown', event => {
@@ -506,18 +511,20 @@ document.querySelector('#reset').addEventListener('click', reset);
 function canMove(x,y) {
   const onFloor = area === 'floor';
   const scale = onFloor ? floorScale : 1;
-  const furniture = onFloor ? floorFurniture : area === 'freezer' ? freezerBlocks : obstacles;
+  const furniture = onFloor ? floorFurniture : area === 'fridge' ? fridgeBlocks : obstacles;
   return x > 13 && x < 480*scale-13 && y > 19*scale+6 && y < 270*scale-20 &&
     !furniture.some(o => x > o.x*scale-10 && x < (o.x+o.w)*scale+10 &&
       y > o.y*scale-9 && y < (o.y+o.h)*scale+9);
 }
 function update(dt) {
   if (shop.open || inventory.open) return;
-  for (const pea of peas) {
+  for (const pea of enemies) {
     if (pea.hp) continue;
     pea.respawn -= dt;
     if (pea.respawn <= 1e-9) {
-      pea.hp = 20;
+      pea.hp = pea.maxHP;
+      pea.x = pea.homeX;
+      pea.y = pea.homeY;
       pea.cooldown = .6;
       pea.flash = 0;
     }
@@ -551,19 +558,19 @@ function update(dt) {
     }
     return;
   }
-  const atFreezerDoor = area === 'floor' && dy < 0 &&
-    Math.abs(bloo.x-freezerDoor.x*floorScale) < 29 &&
-    bloo.y <= freezerDoor.y*floorScale+32;
-  const atFreezerExit = area === 'freezer' && dy > 0 &&
-    Math.abs(bloo.x-freezerExit.x) < 27 && bloo.y >= 239;
-  if (atFreezerDoor || atFreezerExit) {
-    area = atFreezerDoor ? 'freezer' : 'floor';
-    bloo.x = atFreezerDoor ? freezerExit.x : freezerDoor.x*floorScale;
-    bloo.y = atFreezerDoor ? 227 : freezerDoor.y*floorScale+40;
+  const atFridgeDoor = area === 'floor' && dy < 0 &&
+    Math.abs(bloo.x-fridgeDoor.x*floorScale) < 29 &&
+    bloo.y <= fridgeDoor.y*floorScale+32;
+  const atFridgeExit = area === 'fridge' && dy > 0 &&
+    Math.abs(bloo.x-fridgeExit.x) < 27 && bloo.y >= 239;
+  if (atFridgeDoor || atFridgeExit) {
+    area = atFridgeDoor ? 'fridge' : 'floor';
+    bloo.x = atFridgeDoor ? fridgeExit.x : fridgeDoor.x*floorScale;
+    bloo.y = atFridgeDoor ? 227 : fridgeDoor.y*floorScale+40;
     shots = [];
     arrows = [];
     shopOpen.hidden = true;
-    say(atFreezerDoor ? 'Inne i frysen' : 'Tillbaka i köket');
+    say(atFridgeDoor ? 'Inne i kylen' : 'Tillbaka i köket');
     return;
   }
   const onCounter = area === 'counter';
@@ -597,25 +604,42 @@ function update(dt) {
     arrow.y += arrow.vy*dt;
     arrow.life -= dt;
     if (!canMove(arrow.x,arrow.y) || arrow.life <= 0) return false;
-    const pea = peas.find(target => target.hp && target.area === area &&
+    const pea = enemies.find(target => target.hp && target.area === area &&
       Math.hypot(target.x-arrow.x,target.y-arrow.y) < 15);
     if (!pea) return true;
-    const reward = damagePea(pea,catalog.bow.power);
+    const reward = damageEnemy(pea,catalog.bow.power);
     if (reward) awardSeeds(reward);
-    else say('Pea tog 6 skada!');
+    else say((pea.egg ? 'Egg' : 'Pea') + ' tog 6 skada!');
     return false;
   });
-  updatePeas(dt);
+  updateEnemies(dt);
   shopOpen.hidden = !shopNearby();
 }
 
-function updatePeas(dt) {
-  for (const pea of peas) {
+function updateEnemies(dt) {
+  for (const pea of enemies) {
     if (pea.area !== area || !pea.hp) continue;
     pea.flash = Math.max(0,pea.flash-dt);
     pea.cooldown = Math.max(0,pea.cooldown-dt);
     const dx = bloo.x-pea.x, dy = bloo.y-pea.y;
     const distance = Math.hypot(dx,dy);
+    if (pea.egg) {
+      if (distance < 31 && canMove((pea.x+bloo.x)/2,(pea.y+bloo.y)/2)) {
+        if (!pea.cooldown) {
+          hurt('Egg slog med äggskalshandsken!',20);
+          pea.cooldown = 1.35;
+          pea.punch = .22;
+          if (!bloo.hp) return;
+        }
+      } else if (distance < 145) {
+        const x = pea.x + dx/distance*34*dt;
+        const y = pea.y + dy/distance*34*dt;
+        if (canMove(x,pea.y)) pea.x = x;
+        if (canMove(pea.x,y)) pea.y = y;
+      }
+      pea.punch = Math.max(0,(pea.punch ?? 0)-dt);
+      continue;
+    }
     if (pea.cooldown || distance >= 205) continue;
     if (distance < 29) {
       hurt('Närstridsträff!');
@@ -748,12 +772,12 @@ function drawFloor() {
   box('#526f6c',398,61,3,12);
   box('#e3ba72',430,58,10,11);
   box('#f7dfaa',431,60,8,2);
-  box('#244560',freezerDoor.x-16,73,32,15);
-  box('#83c3df',freezerDoor.x-13,76,26,10);
-  box('#bedff4',freezerDoor.x-10,82,20,2);
+  box('#244560',fridgeDoor.x-16,73,32,15);
+  box('#83c3df',fridgeDoor.x-13,76,26,10);
+  box('#bedff4',fridgeDoor.x-10,82,20,2);
   ctx.fillStyle = '#e1f4ff';
   ctx.font = 'bold 7px monospace';
-  ctx.fillText('FRYS',freezerDoor.x-8,69);
+  ctx.fillText('KYL',fridgeDoor.x-8,69);
 
   // Matbord, stolar och en skänk.
   for (const x of [320,394]) for (const y of [118,185]) {
@@ -803,7 +827,7 @@ function drawShopkeeper() {
   ctx.fillText(label,x,y-37);
   ctx.textAlign = 'start';
 }
-function drawPeas() {
+function drawEnemies() {
   for (const arrow of arrows) {
     ctx.save();
     ctx.translate(Math.round(arrow.x),Math.round(arrow.y));
@@ -812,16 +836,34 @@ function drawPeas() {
     box('#f3e9cf',0,-2,4,4);
     ctx.restore();
   }
-  for (const pea of peas) {
+  for (const pea of enemies) {
     if (pea.area !== area || !pea.hp) continue;
-    oval('#7c4d36',pea.x,pea.y+10,16,5);
-    oval('#345535',pea.x,pea.y,15,12);
-    oval(pea.flash ? '#e8ed90' : '#6ea247',pea.x,pea.y-2,13,9);
-    box('#b5ce6e',pea.x-8,pea.y-8,7,3);
-    box('#243b31',pea.x-6,pea.y-2,3,4);
-    box('#243b31',pea.x+3,pea.y-2,3,4);
+    if (pea.egg) {
+      const {x,y} = pea;
+      const reach = pea.punch > 0 ? 4 : 0;
+      oval('#395875',x,y+12,13,4);
+      oval('#654c49',x,y-2,12,15);
+      oval(pea.flash ? '#ffd2a3' : '#fff1d7',x,y-3,10,13);
+      box('#fffaf2',x-4,y-13,5,3);
+      box('#45323f',x-6,y-5,3,4);
+      box('#45323f',x+3,y-5,3,4);
+      for (const side of [-1,1]) {
+        const gloveX = x+side*(12+reach);
+        oval('#935a41',gloveX,y+4,6,6);
+        oval('#f1c08d',gloveX,y+3,5,4);
+        box('#fff1d7',gloveX-3,y,4,2);
+        box('#fff1d7',gloveX,y+2,3,2);
+      }
+    } else {
+      oval('#7c4d36',pea.x,pea.y+10,16,5);
+      oval('#345535',pea.x,pea.y,15,12);
+      oval(pea.flash ? '#e8ed90' : '#6ea247',pea.x,pea.y-2,13,9);
+      box('#b5ce6e',pea.x-8,pea.y-8,7,3);
+      box('#243b31',pea.x-6,pea.y-2,3,4);
+      box('#243b31',pea.x+3,pea.y-2,3,4);
+    }
     box('#303b2b',pea.x-12,pea.y-19,24,4);
-    box('#a7dc65',pea.x-11,pea.y-18,22*pea.hp/20,2);
+    box('#a7dc65',pea.x-11,pea.y-18,22*pea.hp/pea.maxHP,2);
   }
   for (const shot of shots) {
     oval('#374529',shot.x,shot.y,5,5);
@@ -829,7 +871,7 @@ function drawPeas() {
   }
 }
 
-function drawFreezer() {
+function drawFridge() {
   box('#263958',0,0,480,270);
   for (let y=18;y<254;y+=24) for (let x=6;x<474;x+=26) {
     box((x+y)%4 ? '#6b9fbd' : '#79acc8',x,y,25,23);
@@ -841,27 +883,27 @@ function drawFreezer() {
     box('#c2e6f4',x,15,4,5+i%7);
     box('#e0f3fa',x+1,15,1,4+i%7);
   }
-  for (const [i,o] of freezerBlocks.entries()) {
+  for (const [i,o] of fridgeBlocks.entries()) {
     box('#396180',o.x+3,o.y+4,o.w,o.h);
     box('#416785',o.x,o.y,o.w,o.h);
     box(i%2 ? '#91c6d8' : '#b1dadd',o.x+2,o.y+2,o.w-4,o.h-8);
     box('#dbf4f6',o.x+2,o.y+2,o.w-4,4);
     for (let x=o.x+10;x<o.x+o.w-4;x+=14) box('#d0e9ee',x,o.y+7,5,3);
   }
-  box('#28405b',freezerExit.x-31,247,62,23);
-  box('#acdcec',freezerExit.x-27,247,54,3);
+  box('#28405b',fridgeExit.x-31,247,62,23);
+  box('#acdcec',fridgeExit.x-27,247,54,3);
   ctx.fillStyle = '#ecf8ff';
   ctx.font = 'bold 10px monospace';
-  ctx.fillText('↓ KÖKET',freezerExit.x-21,261);
-  drawPeas();
+  ctx.fillText('↓ KÖKET',fridgeExit.x-21,261);
+  drawEnemies();
   drawBloo();
 }
-function drawFreezerGuide(camera) {
-  const x = freezerDoor.x*floorScale;
-  const y = freezerDoor.y*floorScale+23;
+function drawFridgeGuide(camera) {
+  const x = fridgeDoor.x*floorScale;
+  const y = fridgeDoor.y*floorScale+23;
   const near = Math.abs(bloo.x-x) < 44 && Math.abs(bloo.y-y) < 75;
-  const label = near ? '↑ GÅ IN I FRYSEN' :
-    (bloo.x < x-44 ? 'FRYSEN →' : bloo.x > x+44 ? '← FRYSEN' : '↑ FRYSEN');
+  const label = near ? '↑ GÅ IN I KYLEN' :
+    (bloo.x < x-44 ? 'KYLEN →' : bloo.x > x+44 ? '← KYLEN' : '↑ KYLEN');
   box('#253655',canvas.width-124,8,116,21);
   box('#8fcbea',canvas.width-124,8,116,2);
   ctx.font = 'bold 10px monospace';
@@ -875,8 +917,8 @@ function drawFreezerGuide(camera) {
   ctx.textAlign = 'start';
 }
 function draw() {
-  if (area === 'freezer') {
-    drawFreezer();
+  if (area === 'fridge') {
+    drawFridge();
     return;
   }
   if (area === 'floor') {
@@ -888,10 +930,10 @@ function draw() {
     drawFloor();
     ctx.restore();
     drawShopkeeper();
-    drawPeas();
+    drawEnemies();
     drawBloo();
     ctx.restore();
-    drawFreezerGuide(camera);
+    drawFridgeGuide(camera);
     return;
   }
   box('#552f26',0,0,480,270);
@@ -935,7 +977,7 @@ function draw() {
   } else {
     for(let i=0;i<9;i++) box(i%2?'#ffd381':'#9c6237',cracker.x-15+(i*13)%30,cracker.y-8+(i*17)%16,3+i%3,3);
   }
-  drawPeas();
+  drawEnemies();
   drawLadder(ladderX,239,29);
   drawBloo();
 }
