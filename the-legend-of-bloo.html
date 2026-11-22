@@ -6,13 +6,22 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#191427;color:#fff0cd;font:16px system-ui;display:grid;place-items:center;min-height:100dvh;padding:12px}main{width:min(920px,100%)}header,footer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}h1{font-family:Georgia,serif;margin:0 0 8px;font-size:clamp(24px,5vw,42px)}#status{font-weight:800;color:#ffcc7a}canvas{display:block;width:100%;background:#8d512f;image-rendering:pixelated;border:3px solid #593950;border-radius:9px}footer{margin-top:9px;font-size:14px}.controls{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px}.pad{display:grid;grid-template-columns:repeat(3,36px);gap:3px}.pad button{padding:0}.actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}button{background:#3c2a52;color:#fff0cd;border:1px solid #836396;border-radius:7px;min-height:34px;padding:4px 9px;font-weight:750;touch-action:none;user-select:none;cursor:pointer}button:active,button.held{background:#78517f}.up{grid-column:2}.left{grid-column:1}
 .health{display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:800}.health progress{flex:1;height:18px;min-width:40px;accent-color:#ee646b}.health output{white-space:nowrap;color:#bce889;font-size:14px}.health span{min-width:100px;text-align:right;font-variant-numeric:tabular-nums}
+dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;border-radius:12px;background:#2a2044;color:#fff0cd}dialog::backdrop{background:#150d24b0}dialog h2{margin:0 0 8px}dialog p{margin:8px 0 14px}.shop-actions{display:flex;gap:8px;flex-wrap:wrap}button:disabled{opacity:.5;cursor:default}[hidden]{display:none!important}
 </style>
 <main>
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
-<footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD. Gå mot stegen för att klättra.</span><button id="reset" aria-label="Börja om">Börja om</button></footer>
+<footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD. Gå mot stegen för att klättra. R öppnar butiken när du står nära.</span><button id="shop-open" hidden>Butik · R</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
 <div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button></div></div>
+<dialog id="shop" aria-labelledby="shop-title">
+  <h2 id="shop-title">🫐 Blåbärsbutiken</h2>
+  <p id="shop-message" aria-live="polite">Hej Bloo! Vill du ha lite bärsaft?</p>
+  <div class="shop-actions">
+    <button id="buy-juice">Bärsaft · +30 HP · 5 Seeds</button>
+    <form method="dialog"><button>Stäng</button></form>
+  </div>
+</dialog>
 </main>
 <script>
 'use strict';
@@ -23,6 +32,13 @@ const seedsDisplay = document.querySelector('#seeds');
 const seedsKey = 'legend-of-bloo.seeds';
 const healthValue = document.querySelector('#health-value');
 const status = document.querySelector('#status');
+const shop = document.querySelector('#shop');
+const shopOpen = document.querySelector('#shop-open');
+const shopMessage = document.querySelector('#shop-message');
+const buyJuice = document.querySelector('#buy-juice');
+const shopkeeper = {x:1090,y:620};
+const juiceCost = 5;
+const juiceHeal = 30;
 const keys = new Set();
 const pointers = new Map();
 const valid = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyE','KeyF']);
@@ -85,6 +101,7 @@ function reset() {
   bloo.sinceHit = 0;
   showHealth();
   showSeeds();
+  shopOpen.hidden = true;
   broken = false;
   say('Slå på kexet!');
 }
@@ -99,6 +116,35 @@ function hurt(message) {
   bloo.flash = .24;
   showHealth();
   say(bloo.hp ? message : 'Bloo föll! Tryck på Börja om.');
+}
+function shopNearby() {
+  return area === 'floor' && !climb && bloo.hp > 0 &&
+    Math.hypot(bloo.x-shopkeeper.x,bloo.y-shopkeeper.y) <= 85;
+}
+function updateShopButton() {
+  buyJuice.disabled = seeds < juiceCost || bloo.hp >= maxHP;
+}
+function openShop() {
+  if (!shopNearby() || shop.open) return;
+  clearInputs();
+  shopMessage.textContent = 'Hej Bloo! Du har ' + seeds + ' Seeds.';
+  updateShopButton();
+  shop.showModal();
+}
+shopOpen.addEventListener('click',openShop);
+shop.addEventListener('close',clearInputs);
+buyJuice.addEventListener('click', () => {
+  if (!shop.open || !shopNearby() || seeds < juiceCost || bloo.hp >= maxHP) return;
+  seeds -= juiceCost;
+  saveSeeds();
+  bloo.hp = Math.min(maxHP,bloo.hp+juiceHeal);
+  showHealth();
+  shopMessage.textContent = 'Tack för köpet! Du har ' + seeds + ' Seeds kvar.';
+  updateShopButton();
+});
+function saveSeeds() {
+  showSeeds();
+  try { localStorage.setItem(seedsKey,String(seeds)); } catch {}
 }
 function cameraPosition() {
   if (area !== 'floor') return {x:0,y:0};
@@ -142,8 +188,7 @@ function attack(pointer = swordPointer) {
   }
   if (reward) {
     seeds += reward;
-    showSeeds();
-    try { localStorage.setItem(seedsKey,String(seeds)); } catch {}
+    saveSeeds();
   }
   if (area === 'counter' && !broken && inSwordRange(cracker)) {
     broken = true;
@@ -152,6 +197,12 @@ function attack(pointer = swordPointer) {
   if (reward) say('+' + reward + ' Seeds');
 }
 document.addEventListener('keydown', event => {
+  if (shop.open) return;
+  if (event.code === 'KeyR' && !event.repeat && shopNearby()) {
+    event.preventDefault();
+    openShop();
+    return;
+  }
   if (!valid.has(event.code)) return;
   event.preventDefault();
   keys.add(event.code);
@@ -197,6 +248,7 @@ function canMove(x,y) {
       y > o.y*scale-9 && y < (o.y+o.h)*scale+9);
 }
 function update(dt) {
+  if (shop.open) return;
   for (const pea of peas) {
     if (pea.hp) continue;
     pea.respawn -= dt;
@@ -259,6 +311,7 @@ function update(dt) {
   } else bloo.step = 0;
 
   updatePeas(dt);
+  shopOpen.hidden = !shopNearby();
 }
 
 function updatePeas(dt) {
@@ -424,6 +477,31 @@ function drawFloor() {
   for (let x=79;x<181;x+=9) box('#edaa98',x,214,3,19);
 }
 
+function drawShopkeeper() {
+  const {x,y} = shopkeeper;
+  box('#69443c',x-46,y-9,92,31);
+  box('#c39062',x-44,y-11,88,16);
+  box('#8c635e',x-42,y+6,84,13);
+  box('#f0bd84',x-44,y-11,88,3);
+  box('#8fcaa8',x-34,y-8,8,11);
+  box('#dad496',x-32,y-11,4,3);
+  box('#8fcaa8',x+25,y-8,8,11);
+  box('#dad496',x+27,y-11,4,3);
+  oval('#1b2045',x,y-15,15,14);
+  oval('#7659be',x,y-16,12,11);
+  box('#ae91ed',x-8,y-22,5,3);
+  box('#32285a',x-5,y-28,10,3);
+  box('#1a1736',x-6,y-17,3,4);
+  box('#1a1736',x+4,y-17,3,4);
+  box('#ffe3ad',x-2,y-12,5,2);
+  const label = shopNearby() ? 'R · BUTIK' : 'BUTIK';
+  box('#33243d',x-37,y-48,74,15);
+  ctx.font = 'bold 10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffe5ae';
+  ctx.fillText(label,x,y-37);
+  ctx.textAlign = 'start';
+}
 function drawPeas() {
   for (const pea of peas) {
     if (pea.area !== area || !pea.hp) continue;
@@ -451,6 +529,7 @@ function draw() {
     ctx.scale(floorScale,floorScale);
     drawFloor();
     ctx.restore();
+    drawShopkeeper();
     drawPeas();
     drawBloo();
     ctx.restore();
