@@ -106,12 +106,12 @@ const startDoorX = 104;
 const exitDoorX = 880;
 const finalRoom = 10;
 const stairsStart = { x: 0, width: 132, y: floor };
-const stairsExit = { x: 890, width: 70, y: 246 };
-const stairExitDoorX = 928;
-const stairExitRevealX = 665;
+const stairsExit = { x: 855, width: 105, y: 142 };
+const stairExitDoorX = 903;
+const stairExitRevealX = 628;
 const holeRimWidth = 20;
 const stairFallSpeed = 34;
-const stairSpawnInterval = 0.48;
+const stairSpawnInterval = 1.35;
 let stairs = [];
 let stairsTime = 0;
 let stairsExitVisible = false;
@@ -155,7 +155,7 @@ function reset() {
     stairsTime = 0;
     stairsExitVisible = false;
     stairs = Array.from({ length: 10 }, (_, index) => ({
-      number: index + 1, x: 158 + index * 73, width: 66,
+      number: index + 1, x: 158 + index * 68, width: 66,
       y: -13, visible: false,
       standing: 0, collapsed: false, spikeTime: 0, spikeUsed: false,
       holeTimer: null, holeOpen: false,
