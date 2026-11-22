@@ -7,13 +7,33 @@
 *{box-sizing:border-box}body{margin:0;background:#191427;color:#fff0cd;font:16px system-ui;display:grid;place-items:center;min-height:100dvh;padding:12px}main{width:min(920px,100%)}header,footer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}h1{font-family:Georgia,serif;margin:0 0 8px;font-size:clamp(24px,5vw,42px)}#status{font-weight:800;color:#ffcc7a}canvas{display:block;width:100%;background:#8d512f;image-rendering:pixelated;border:3px solid #593950;border-radius:9px}footer{margin-top:9px;font-size:14px}.controls{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px}.pad{display:grid;grid-template-columns:repeat(3,36px);gap:3px}.pad button{padding:0}.actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}button{background:#3c2a52;color:#fff0cd;border:1px solid #836396;border-radius:7px;min-height:34px;padding:4px 9px;font-weight:750;touch-action:none;user-select:none;cursor:pointer}button:active,button.held{background:#78517f}.up{grid-column:2}.left{grid-column:1}
 .health{display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:800}.health progress{flex:1;height:18px;min-width:40px;accent-color:#ee646b}.health output{white-space:nowrap;color:#bce889;font-size:14px}.health span{min-width:100px;text-align:right;font-variant-numeric:tabular-nums}
 dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;border-radius:12px;background:#2a2044;color:#fff0cd}dialog::backdrop{background:#150d24b0}dialog h2{margin:0 0 8px}dialog p{margin:8px 0 14px}.shop-actions{display:flex;gap:8px;flex-wrap:wrap}button:disabled{opacity:.5;cursor:default}[hidden]{display:none!important}
+#inventory-open{grid-column:1/-1;background:#554078} .actions{display:grid;grid-template-columns:repeat(2,auto)}
+#inventory{width:min(590px,calc(100% - 24px));max-height:calc(100dvh - 24px);border-radius:4px;box-shadow:inset 0 0 0 3px #3e2b56}
+.inventory-layout{display:grid;grid-template-columns:3fr 1.5fr 1.5fr;gap:10px;margin:14px 0}
+.inventory-layout section{min-width:0}.inventory-layout h3{font-size:13px;margin:0 0 6px}
+.slots{display:grid;gap:4px}.item-slots{grid-template-columns:repeat(3,minmax(0,1fr))}
+.slot{display:grid;place-content:center;text-align:center;min-height:52px;padding:3px;background:#21172f;border:2px solid #554269;font:12px monospace;color:#cbb9dc;overflow-wrap:anywhere}
+.slot.equipped{border-color:#d9ae71;color:#fff0cd;background:#4a3559}.slot b{font-size:17px}
+.potion-slots{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:400px){.inventory-layout{grid-template-columns:1fr 1fr}.inventory-items{grid-column:1/-1}}
 </style>
 <main>
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
 <footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD. Gå mot stegen för att klättra. R öppnar butiken när du står nära.</span><button id="shop-open" hidden>Butik · R</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
-<div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button></div></div>
+<div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog">Inventory</button><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button></div></div>
+<dialog id="inventory" aria-labelledby="inventory-title">
+  <h2 id="inventory-title">Inventory</h2>
+  <div class="inventory-layout">
+    <section class="inventory-items"><h3>Items</h3><div class="slots item-slots"><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div></div></section>
+    <section><h3>Active Weapon</h3><div class="slot equipped"><b aria-hidden="true">⚔</b>SWORD</div><h3>Active Shield</h3><div class="slot equipped"><b aria-hidden="true">⬟</b>SHIELD</div></section>
+    <section><h3>Active Armor</h3><div class="slots"><div class="slot">Upper · —</div><div class="slot">Lower · —</div></div></section>
+    <section><h3>Active Potions</h3><div class="slots potion-slots"><div class="slot">1 · —</div><div class="slot">2 · —</div></div></section>
+    <section><h3>Active Gadget</h3><div class="slot"><span aria-label="Tom ruta">—</span></div></section>
+  </div>
+  <form method="dialog"><button>Stäng</button></form>
+</dialog>
 <dialog id="shop" aria-labelledby="shop-title">
   <h2 id="shop-title">🫐 Blåbärsbutiken</h2>
   <p id="shop-message" aria-live="polite">Hej Bloo! Vill du ha lite bärsaft?</p>
@@ -32,6 +52,8 @@ const seedsDisplay = document.querySelector('#seeds');
 const seedsKey = 'legend-of-bloo.seeds';
 const healthValue = document.querySelector('#health-value');
 const status = document.querySelector('#status');
+const inventory = document.querySelector('#inventory');
+const inventoryOpen = document.querySelector('#inventory-open');
 const shop = document.querySelector('#shop');
 const shopOpen = document.querySelector('#shop-open');
 const shopMessage = document.querySelector('#shop-message');
@@ -197,7 +219,7 @@ function attack(pointer = swordPointer) {
   if (reward) say('+' + reward + ' Seeds');
 }
 document.addEventListener('keydown', event => {
-  if (shop.open) return;
+  if (shop.open || inventory.open) return;
   if (event.code === 'KeyR' && !event.repeat && shopNearby()) {
     event.preventDefault();
     openShop();
@@ -220,6 +242,12 @@ function clearInputs() {
   pointers.clear();
   document.querySelectorAll('.held').forEach(button => button.classList.remove('held'));
 }
+inventoryOpen.addEventListener('click', () => {
+  if (shop.open || inventory.open) return;
+  clearInputs();
+  inventory.showModal();
+});
+inventory.addEventListener('close', clearInputs);
 window.addEventListener('blur', clearInputs);
 document.addEventListener('visibilitychange', () => { if (document.hidden) clearInputs(); });
 for (const button of document.querySelectorAll('[data-key]')) {
@@ -248,7 +276,7 @@ function canMove(x,y) {
       y > o.y*scale-9 && y < (o.y+o.h)*scale+9);
 }
 function update(dt) {
-  if (shop.open) return;
+  if (shop.open || inventory.open) return;
   for (const pea of peas) {
     if (pea.hp) continue;
     pea.respawn -= dt;
