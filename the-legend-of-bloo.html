@@ -5,10 +5,12 @@
 <title>The Legend of Bloo</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#191427;color:#fff0cd;font:16px system-ui;display:grid;place-items:center;min-height:100dvh;padding:12px}main{width:min(920px,100%)}header,footer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}h1{font-family:Georgia,serif;margin:0 0 8px;font-size:clamp(24px,5vw,42px)}#status{font-weight:800;color:#ffcc7a}canvas{display:block;width:100%;background:#8d512f;image-rendering:pixelated;border:3px solid #593950;border-radius:9px}footer{margin-top:9px;font-size:14px}.controls{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px}.pad{display:grid;grid-template-columns:repeat(3,36px);gap:3px}.pad button{padding:0}.actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}button{background:#3c2a52;color:#fff0cd;border:1px solid #836396;border-radius:7px;min-height:34px;padding:4px 9px;font-weight:750;touch-action:none;user-select:none;cursor:pointer}button:active,button.held{background:#78517f}.up{grid-column:2}.left{grid-column:1}
+.health{display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:800}.health progress{flex:1;height:18px;min-width:40px;accent-color:#ee646b}.health span{min-width:100px;text-align:right;font-variant-numeric:tabular-nums}
 </style>
 <main>
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
+<div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span></div>
 <footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD. Gå mot stegen för att klättra.</span><button id="reset" aria-label="Börja om">Börja om</button></footer>
 <div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button></div></div>
 </main>
@@ -16,6 +18,8 @@
 'use strict';
 const canvas = document.querySelector('canvas');
 const ctx = canvas.getContext('2d');
+const healthBar = document.querySelector('#health');
+const healthValue = document.querySelector('#health-value');
 const status = document.querySelector('#status');
 const keys = new Set();
 const pointers = new Map();
@@ -26,7 +30,20 @@ const obstacles = [
   {x:202,y:28,w:64,h:30}
 ];
 const cracker = {x:225,y:144};
-const pea = {x:410,y:80};
+const peaSpawns = [
+  {area:'counter',x:410,y:80},
+  {area:'counter',x:290,y:191},
+  {area:'floor',x:252,y:328},
+  {area:'floor',x:734,y:357},
+  {area:'floor',x:1125,y:300},
+  {area:'floor',x:836,y:660},
+  {area:'floor',x:1215,y:684}
+];
+const maxHP = 100;
+const swordDamage = 5;
+const peaDamage = 10;
+const regenDelay = 2;
+const regenPerSecond = 2;
 const floorFurniture = [
   {x:21,y:32,w:229,h:48},
   {x:300,y:32,w:82,h:49},
@@ -42,7 +59,7 @@ const ladderX = 177;
 const floorScale = 3;
 const worldWidth = 480*floorScale;
 const worldHeight = 270*floorScale;
-let bloo, shots, nextShot, broken, area, climb, last = 0;
+let bloo, peas, shots, broken, area, climb, last = 0;
 
 function say(message) { if (status.textContent !== message) status.textContent = message; }
 function reset() {
@@ -50,19 +67,45 @@ function reset() {
   area = 'counter';
   climb = null;
   shots = [];
-  nextShot = 1.6;
+  peas = peaSpawns.map((spawn,index) => ({...spawn,hp:20,cooldown:.6+index%3*.35,flash:0}));
+  bloo.hp = maxHP;
+  bloo.sinceHit = 0;
+  showHealth();
   broken = false;
   say('Slå på kexet!');
 }
+function showHealth() {
+  healthBar.value = bloo.hp;
+  const label = Math.ceil(bloo.hp) + ' / ' + maxHP;
+  if (healthValue.textContent !== label) healthValue.textContent = label;
+}
+function hurt(message) {
+  bloo.hp = Math.max(0,bloo.hp-peaDamage);
+  bloo.sinceHit = 0;
+  bloo.flash = .24;
+  showHealth();
+  say(bloo.hp ? message : 'Bloo föll! Tryck på Börja om.');
+}
+function inSwordRange(target) {
+  const x = target.x-bloo.x, y = target.y-bloo.y;
+  const distance = Math.hypot(x,y);
+  return distance < 38 && (distance < 5 || x*bloo.fx+y*bloo.fy > .4*distance);
+}
 function down(...codes) { return codes.some(code => keys.has(code) || [...pointers.values()].includes(code)); }
 function attack() {
-  if (climb || bloo.guard || down('KeyF') || bloo.swing > 0) return;
+  if (!bloo.hp || climb || bloo.guard || down('KeyF') || bloo.swing > 0) return;
   bloo.swing = .27;
-  const x = cracker.x - bloo.x, y = cracker.y - bloo.y;
-  if (area === 'counter' && !broken && Math.hypot(x,y) < 36 && x*bloo.fx+y*bloo.fy > .4*Math.hypot(x,y)) {
+  let hit = false;
+  for (const pea of peas) {
+    if (pea.area !== area || !pea.hp || !inSwordRange(pea)) continue;
+    pea.hp = Math.max(0,pea.hp-swordDamage);
+    pea.flash = .18;
+    hit = true;
+  }
+  if (area === 'counter' && !broken && inSwordRange(cracker)) {
     broken = true;
-    say('Träff! Blockera en ärta nästa gång.');
-  } else say('SWORD!');
+    say('Kexet gick sönder!');
+  } else say(hit ? 'Pea tog 5 skada!' : 'SWORD!');
 }
 document.addEventListener('keydown', event => {
   if (!valid.has(event.code)) return;
@@ -105,6 +148,13 @@ function canMove(x,y) {
       y > o.y*scale-9 && y < (o.y+o.h)*scale+9);
 }
 function update(dt) {
+  if (!bloo.hp) return;
+  const healTime = Math.max(0,bloo.sinceHit+dt-regenDelay) - Math.max(0,bloo.sinceHit-regenDelay);
+  bloo.sinceHit = Math.min(regenDelay,bloo.sinceHit+dt);
+  if (healTime && bloo.hp < maxHP) {
+    bloo.hp = Math.min(maxHP,bloo.hp+healTime*regenPerSecond+1e-9);
+    showHealth();
+  }
   bloo.swing = Math.max(0,bloo.swing-dt);
   bloo.flash = Math.max(0,bloo.flash-dt);
   bloo.guard = down('KeyF') && !bloo.swing;
@@ -117,6 +167,7 @@ function update(dt) {
     bloo.step += dt*24;
     if (fraction === 1) {
       area = climb.next;
+      shots = [];
       bloo.x = area === 'counter' ? ladderX : ladderX*floorScale;
       bloo.y = area === 'counter' ? 233 : 106*floorScale;
       climb = null;
@@ -149,23 +200,36 @@ function update(dt) {
     bloo.step += dt*20;
   } else bloo.step = 0;
 
-  if (area === 'floor') return;
-  nextShot -= dt;
-  if (nextShot <= 0 && Math.hypot(bloo.x-pea.x,bloo.y-pea.y) < 180) {
-    const angle = Math.atan2(bloo.y-pea.y,bloo.x-pea.x);
-    shots.push({x:pea.x,y:pea.y,vx:Math.cos(angle)*95,vy:Math.sin(angle)*95,age:0});
-    nextShot = 1.9;
+  updatePeas(dt);
+}
+
+function updatePeas(dt) {
+  for (const pea of peas) {
+    if (pea.area !== area || !pea.hp) continue;
+    pea.flash = Math.max(0,pea.flash-dt);
+    pea.cooldown = Math.max(0,pea.cooldown-dt);
+    const dx = bloo.x-pea.x, dy = bloo.y-pea.y;
+    const distance = Math.hypot(dx,dy);
+    if (pea.cooldown || distance >= 205) continue;
+    if (distance < 29) {
+      hurt('Närstridsträff! −10 HP');
+      pea.cooldown = 1.3;
+      if (!bloo.hp) return;
+    } else {
+      shots.push({x:pea.x,y:pea.y,vx:dx/distance*95,vy:dy/distance*95,age:0});
+      pea.cooldown = 1.9;
+    }
   }
   shots = shots.filter(shot => {
     shot.x+=shot.vx*dt;
     shot.y+=shot.vy*dt;
     shot.age+=dt;
-    if (Math.hypot(shot.x-bloo.x,shot.y-bloo.y) < 16) {
+    if (bloo.hp && Math.hypot(shot.x-bloo.x,shot.y-bloo.y) < 16) {
       if (bloo.guard && bloo.fx*shot.vx+bloo.fy*shot.vy < -30) say('SHIELD blockerade ärtan!');
-      else { bloo.flash=.24; say('Ärtträff! Vänd SHIELD mot ärtan.'); }
+      else hurt('Ärtträff! −10 HP');
       return false;
     }
-    return shot.age < 3 && shot.x>0 && shot.x<480 && shot.y>0 && shot.y<270;
+    return shot.age < 3 && canMove(shot.x,shot.y);
   });
 }
 
@@ -302,6 +366,24 @@ function drawFloor() {
   for (let x=79;x<181;x+=9) box('#edaa98',x,214,3,19);
 }
 
+function drawPeas() {
+  for (const pea of peas) {
+    if (pea.area !== area || !pea.hp) continue;
+    oval('#7c4d36',pea.x,pea.y+10,16,5);
+    oval('#345535',pea.x,pea.y,15,12);
+    oval(pea.flash ? '#e8ed90' : '#6ea247',pea.x,pea.y-2,13,9);
+    box('#b5ce6e',pea.x-8,pea.y-8,7,3);
+    box('#243b31',pea.x-6,pea.y-2,3,4);
+    box('#243b31',pea.x+3,pea.y-2,3,4);
+    box('#303b2b',pea.x-12,pea.y-19,24,4);
+    box('#a7dc65',pea.x-11,pea.y-18,22*pea.hp/20,2);
+  }
+  for (const shot of shots) {
+    oval('#374529',shot.x,shot.y,5,5);
+    oval('#acd557',shot.x-1,shot.y-1,3,3);
+  }
+}
+
 function draw() {
   if (area === 'floor') {
     const cameraX = Math.round(Math.max(0,Math.min(worldWidth-canvas.width,bloo.x-canvas.width/2)));
@@ -312,6 +394,7 @@ function draw() {
     ctx.scale(floorScale,floorScale);
     drawFloor();
     ctx.restore();
+    drawPeas();
     drawBloo();
     ctx.restore();
     return;
@@ -357,16 +440,7 @@ function draw() {
   } else {
     for(let i=0;i<9;i++) box(i%2?'#ffd381':'#9c6237',cracker.x-15+(i*13)%30,cracker.y-8+(i*17)%16,3+i%3,3);
   }
-  oval('#7c4d36',pea.x,pea.y+10,16,5);
-  oval('#345535',pea.x,pea.y,15,12);
-  oval('#6ea247',pea.x,pea.y-2,13,9);
-  box('#b5ce6e',pea.x-8,pea.y-8,7,3);
-  box('#243b31',pea.x-6,pea.y-2,3,4);
-  box('#243b31',pea.x+3,pea.y-2,3,4);
-  for (const shot of shots) {
-    oval('#374529',shot.x,shot.y,5,5);
-    oval('#acd557',shot.x-1,shot.y-1,3,3);
-  }
+  drawPeas();
   drawLadder(ladderX,239,29);
   drawBloo();
 }
