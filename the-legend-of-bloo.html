@@ -23,7 +23,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
-<footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra och följ vägvisaren KYLEN på köksgolvet. R öppnar butiken när du står nära.</span><button id="shop-open" hidden>Butik · R</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
+<footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra och följ vägvisaren KYLEN på köksgolvet. R öppnar butiken · T öppnar kistor när du står nära.</span><button id="chest-open" hidden>Öppna kista · T</button><button id="shop-open" hidden>Butik · R</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
 <div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button><button id="bow-fire" hidden>Bow · Mellanslag</button></div></div>
 <dialog id="inventory" aria-labelledby="inventory-title">
   <h2 id="inventory-title">Inventory</h2>
@@ -59,6 +59,18 @@ const inventoryOpen = document.querySelector('#inventory-open');
 const shop = document.querySelector('#shop');
 const shopOpen = document.querySelector('#shop-open');
 const shopMessage = document.querySelector('#shop-message');
+const chestButton = document.querySelector('#chest-open');
+const chests = [
+  {id:'counter-crumbs',area:'counter',x:176,y:104,seeds:6,item:'potion'},
+  {id:'counter-spoon',area:'counter',x:443,y:126,seeds:4,item:'twig'},
+  {id:'floor-rug',area:'floor',x:344,y:665,seeds:9,item:'speedPotion'},
+  {id:'floor-table',area:'floor',x:1325,y:656,seeds:13},
+  {id:'fridge-left',area:'fridge',x:53,y:67,seeds:7,item:'potion'},
+  {id:'fridge-top',area:'fridge',x:250,y:55,seeds:8,item:'bow'},
+  {id:'fridge-shelf',area:'fridge',x:350,y:120,seeds:10,item:'speedPotion'},
+  {id:'fridge-corner',area:'fridge',x:438,y:206,seeds:12,item:'thorn'}
+];
+const openedChests = new Set();
 const catalog = {
   bow: {name:'Bow',slot:'gadget',cost:12,power:6,detail:'Mellanslag skjuter en pil mot musen'},
   "twig": {
@@ -179,6 +191,9 @@ const isPotion = id => Object.hasOwn(catalog,id) && catalog[id].slot === 'potion
 const restorePotion = id => id === true ? 'potion' : isPotion(id) ? id : false;
 try {
   const saved = JSON.parse(localStorage.getItem(progressKey));
+  if (Array.isArray(saved?.openedChests)) {
+    for (const chest of chests) if (saved.openedChests.includes(chest.id)) openedChests.add(chest.id);
+  }
   const balance = saved?.seeds ?? Number(localStorage.getItem(seedsKey));
   if (Number.isSafeInteger(balance) && balance >= 0) seeds = balance;
   if (Array.isArray(saved?.owned)) {
@@ -218,6 +233,7 @@ function reset() {
   showSeeds();
   updateBowButton();
   shopOpen.hidden = true;
+  chestButton.hidden = true;
   broken = false;
   say('Slå på kexet!');
 }
@@ -245,6 +261,31 @@ function storedItems() {
 function bagFull() {
   return storedItems().length >= itemSlots.length;
 }
+function nearbyChest() {
+  if (!bloo.hp || climb) return undefined;
+  return chests.find(chest => chest.area === area && !openedChests.has(chest.id) &&
+    Math.hypot(bloo.x-chest.x,bloo.y-chest.y) <= 31);
+}
+function openChest() {
+  if (shop.open || inventory.open) return;
+  const chest = nearbyChest();
+  if (!chest) return;
+  const duplicate = owned.includes(chest.item);
+  const item = duplicate ? undefined : catalog[chest.item];
+  if (item && bagFull()) {
+    say('Items är fullt. Kistan väntar på dig.');
+    return;
+  }
+  if (item?.slot === 'potion') storedPotions.push(chest.item);
+  else if (item) owned.push(chest.item);
+  const reward = chest.seeds + (duplicate ? catalog[chest.item].cost : 0);
+  seeds += reward;
+  openedChests.add(chest.id);
+  saveSeeds();
+  chestButton.hidden = true;
+  say('Kista: +' + reward + ' Seeds' + (item ? ' och ' + item.name : '') + '!');
+}
+chestButton.addEventListener('click',openChest);
 function canBuy(id) {
   return seeds >= catalog[id].cost && !owned.includes(id) && !bagFull();
 }
@@ -278,7 +319,7 @@ for (const button of stock) button.addEventListener('click', () => {
 function saveSeeds() {
   showSeeds();
   updateBowButton();
-  try { localStorage.setItem(progressKey,JSON.stringify({seeds,owned,equipped,potions,storedPotions})); } catch {}
+  try { localStorage.setItem(progressKey,JSON.stringify({seeds,owned,equipped,potions,storedPotions,openedChests:[...openedChests]})); } catch {}
 }
 function equipmentButton(id, onClick, action) {
   const item = catalog[id];
@@ -454,6 +495,11 @@ document.addEventListener('keydown', event => {
   if (event.code === 'Space') {
     event.preventDefault();
     if (!event.repeat) fireBow();
+    return;
+  }
+  if (event.code === 'KeyT') {
+    event.preventDefault();
+    if (!event.repeat) openChest();
     return;
   }
   if (event.code === 'KeyR' && !event.repeat && shopNearby()) {
@@ -828,6 +874,22 @@ function drawShopkeeper() {
   ctx.textAlign = 'start';
 }
 function drawEnemies() {
+  const nearby = nearbyChest();
+  for (const chest of chests) {
+    if (chest.area !== area) continue;
+    const {x,y} = chest;
+    const opened = openedChests.has(chest.id);
+    box('#3f2a38',x-13,y-8,26,19);
+    box('#9d5d42',x-11,y-1,22,10);
+    box(opened ? '#362638' : '#e0a556',x-11,y-6,22,6);
+    box(opened ? '#83634e' : '#fff1a6',x-2,y-1,4,5);
+    if (nearby === chest) {
+      box('#362638',x-8,y-26,16,14);
+      ctx.fillStyle = '#fff1a6';
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText('T',x-3,y-15);
+    }
+  }
   for (const arrow of arrows) {
     ctx.save();
     ctx.translate(Math.round(arrow.x),Math.round(arrow.y));
@@ -985,6 +1047,7 @@ function frame(now) {
   const dt=last ? Math.min((now-last)/1000,.04) : 0;
   last=now;
   update(dt);
+  chestButton.hidden = !nearbyChest();
   draw();
   requestAnimationFrame(frame);
 }
