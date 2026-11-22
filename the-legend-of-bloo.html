@@ -23,7 +23,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
-<footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra eller mot frysdörren för att gå in. R öppnar butiken när du står nära.</span><button id="shop-open" hidden>Butik · R</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
+<footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra och följ vägvisaren FRYSEN på köksgolvet. R öppnar butiken när du står nära.</span><button id="shop-open" hidden>Butik · R</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
 <div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button><button id="bow-fire" hidden>Bow · Mellanslag</button></div></div>
 <dialog id="inventory" aria-labelledby="inventory-title">
   <h2 id="inventory-title">Inventory</h2>
@@ -856,6 +856,24 @@ function drawFreezer() {
   drawPeas();
   drawBloo();
 }
+function drawFreezerGuide(camera) {
+  const x = freezerDoor.x*floorScale;
+  const y = freezerDoor.y*floorScale+23;
+  const near = Math.abs(bloo.x-x) < 44 && Math.abs(bloo.y-y) < 75;
+  const label = near ? '↑ GÅ IN I FRYSEN' :
+    (bloo.x < x-44 ? 'FRYSEN →' : bloo.x > x+44 ? '← FRYSEN' : '↑ FRYSEN');
+  box('#253655',canvas.width-124,8,116,21);
+  box('#8fcbea',canvas.width-124,8,116,2);
+  ctx.font = 'bold 10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#e5f7ff';
+  ctx.fillText(label,canvas.width-66,23);
+  if (near) {
+    ctx.fillStyle = '#e5f7ff';
+    ctx.fillText('▲',x-camera.x,y-camera.y+9);
+  }
+  ctx.textAlign = 'start';
+}
 function draw() {
   if (area === 'freezer') {
     drawFreezer();
@@ -873,6 +891,7 @@ function draw() {
     drawPeas();
     drawBloo();
     ctx.restore();
+    drawFreezerGuide(camera);
     return;
   }
   box('#552f26',0,0,480,270);
