@@ -34,8 +34,8 @@
     .obby-art { display: grid; place-items: center; aspect-ratio: 16 / 10; background: radial-gradient(ellipse, #392952, #161322 72%); }
     .obby-door { position: relative; display: block; width: 19%; height: 52%; border: 4px solid #c7ff76; border-bottom-width: 6px; background: #161322; box-shadow: 0 0 24px #c7ff7655; }
     .obby-door::after { content: ""; position: absolute; top: 54%; right: 16%; width: 6px; height: 6px; background: #c7ff76; }
-    .bloo-art { display: grid; place-items: center; aspect-ratio: 16 / 10; background: radial-gradient(ellipse, #4d458b, #211936 76%); font-size: clamp(54px, 12vw, 110px); }
-    .bloo-art img { width: 60%; max-width: 280px; aspect-ratio: 1; padding: 0; image-rendering: pixelated; filter: drop-shadow(0 8px 14px #160f2a88); }
+    .bloo-art { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 10; background: radial-gradient(ellipse, #4d458b, #211936 76%); font-size: clamp(54px, 12vw, 110px); }
+    .bloo-art img { position: absolute; inset: 0; margin: auto; width: auto; height: 90%; max-width: 90%; aspect-ratio: 1; padding: 0; image-rendering: pixelated; filter: drop-shadow(0 8px 14px #160f2a88); }
     .label { display: flex; justify-content: space-between; gap: 8px; padding: 17px 20px; font-size: clamp(19px, 3vw, 30px); font-weight: 800; }
     @media (max-width: 550px) { nav { grid-template-columns: 1fr; } }
   </style>
