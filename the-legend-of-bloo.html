@@ -22,7 +22,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
 <footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD. Gå mot stegen för att klättra. R öppnar butiken när du står nära.</span><button id="shop-open" hidden>Butik · R</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
-<div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog">Inventory</button><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button></div></div>
+<div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button></div></div>
 <dialog id="inventory" aria-labelledby="inventory-title">
   <h2 id="inventory-title">Inventory</h2>
   <div class="inventory-layout">
@@ -219,6 +219,11 @@ function attack(pointer = swordPointer) {
   if (reward) say('+' + reward + ' Seeds');
 }
 document.addEventListener('keydown', event => {
+  if (event.code === 'KeyQ' && !shop.open) {
+    event.preventDefault();
+    if (!event.repeat) toggleInventory();
+    return;
+  }
   if (shop.open || inventory.open) return;
   if (event.code === 'KeyR' && !event.repeat && shopNearby()) {
     event.preventDefault();
@@ -242,11 +247,13 @@ function clearInputs() {
   pointers.clear();
   document.querySelectorAll('.held').forEach(button => button.classList.remove('held'));
 }
-inventoryOpen.addEventListener('click', () => {
-  if (shop.open || inventory.open) return;
+function toggleInventory() {
+  if (shop.open) return;
   clearInputs();
-  inventory.showModal();
-});
+  if (inventory.open) inventory.close();
+  else inventory.showModal();
+}
+inventoryOpen.addEventListener('click', toggleInventory);
 inventory.addEventListener('close', clearInputs);
 window.addEventListener('blur', clearInputs);
 document.addEventListener('visibilitychange', () => { if (document.hidden) clearInputs(); });
