@@ -5,12 +5,12 @@
 <title>The Legend of Bloo</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#191427;color:#fff0cd;font:16px system-ui;display:grid;place-items:center;min-height:100dvh;padding:12px}main{width:min(920px,100%)}header,footer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}h1{font-family:Georgia,serif;margin:0 0 8px;font-size:clamp(24px,5vw,42px)}#status{font-weight:800;color:#ffcc7a}canvas{display:block;width:100%;background:#8d512f;image-rendering:pixelated;border:3px solid #593950;border-radius:9px}footer{margin-top:9px;font-size:14px}.controls{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px}.pad{display:grid;grid-template-columns:repeat(3,36px);gap:3px}.pad button{padding:0}.actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}button{background:#3c2a52;color:#fff0cd;border:1px solid #836396;border-radius:7px;min-height:34px;padding:4px 9px;font-weight:750;touch-action:none;user-select:none;cursor:pointer}button:active,button.held{background:#78517f}.up{grid-column:2}.left{grid-column:1}
-.health{display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:800}.health progress{flex:1;height:18px;min-width:40px;accent-color:#ee646b}.health span{min-width:100px;text-align:right;font-variant-numeric:tabular-nums}
+.health{display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:800}.health progress{flex:1;height:18px;min-width:40px;accent-color:#ee646b}.health output{white-space:nowrap;color:#bce889;font-size:14px}.health span{min-width:100px;text-align:right;font-variant-numeric:tabular-nums}
 </style>
 <main>
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
-<div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span></div>
+<div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
 <footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för SWORD · håll F för SHIELD. Gå mot stegen för att klättra.</span><button id="reset" aria-label="Börja om">Börja om</button></footer>
 <div class="controls"><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button data-key="KeyE">⚔ SWORD</button><button data-key="KeyF">⬟ SHIELD</button></div></div>
 </main>
@@ -19,6 +19,8 @@
 const canvas = document.querySelector('canvas');
 const ctx = canvas.getContext('2d');
 const healthBar = document.querySelector('#health');
+const seedsDisplay = document.querySelector('#seeds');
+const seedsKey = 'legend-of-bloo.seeds';
 const healthValue = document.querySelector('#health-value');
 const status = document.querySelector('#status');
 const keys = new Set();
@@ -60,6 +62,16 @@ const floorScale = 3;
 const worldWidth = 480*floorScale;
 const worldHeight = 270*floorScale;
 let swordPointer = null;
+let seeds = 0;
+try {
+  const saved = Number(localStorage.getItem(seedsKey));
+  if (Number.isSafeInteger(saved) && saved >= 0) seeds = saved;
+} catch {
+  // Currency still works for the current session if storage is unavailable.
+}
+function showSeeds() {
+  seedsDisplay.textContent = '🌱 ' + seeds + ' Seeds';
+}
 let bloo, peas, shots, broken, area, climb, last = 0;
 
 function say(message) { if (status.textContent !== message) status.textContent = message; }
@@ -72,6 +84,7 @@ function reset() {
   bloo.hp = maxHP;
   bloo.sinceHit = 0;
   showHealth();
+  showSeeds();
   broken = false;
   say('Slå på kexet!');
 }
@@ -116,16 +129,27 @@ function attack(pointer = swordPointer) {
   bloo.swordAim = swordDirection(pointer);
   bloo.swing = .27;
   let hit = false;
+  let reward = 0;
   for (const pea of peas) {
     if (pea.area !== area || !pea.hp || !inSwordRange(pea)) continue;
     pea.hp = Math.max(0,pea.hp-swordDamage);
     pea.flash = .18;
     hit = true;
+    if (!pea.hp) {
+      pea.respawn = 10;
+      reward += 1+Math.floor(Math.random()*5);
+    }
+  }
+  if (reward) {
+    seeds += reward;
+    showSeeds();
+    try { localStorage.setItem(seedsKey,String(seeds)); } catch {}
   }
   if (area === 'counter' && !broken && inSwordRange(cracker)) {
     broken = true;
     say('Kexet gick sönder!');
-  } else say(hit ? 'Pea tog 5 skada!' : 'SWORD!');
+  } else if (!reward) say(hit ? 'Pea tog 5 skada!' : 'SWORD!');
+  if (reward) say('+' + reward + ' Seeds');
 }
 document.addEventListener('keydown', event => {
   if (!valid.has(event.code)) return;
@@ -173,6 +197,15 @@ function canMove(x,y) {
       y > o.y*scale-9 && y < (o.y+o.h)*scale+9);
 }
 function update(dt) {
+  for (const pea of peas) {
+    if (pea.hp) continue;
+    pea.respawn -= dt;
+    if (pea.respawn <= 1e-9) {
+      pea.hp = 20;
+      pea.cooldown = .6;
+      pea.flash = 0;
+    }
+  }
   if (!bloo.hp) return;
   const healTime = Math.max(0,bloo.sinceHit+dt-regenDelay) - Math.max(0,bloo.sinceHit-regenDelay);
   bloo.sinceHit = Math.min(regenDelay,bloo.sinceHit+dt);
