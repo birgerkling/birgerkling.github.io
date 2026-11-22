@@ -247,28 +247,41 @@ function saveSeeds() {
   showSeeds();
   try { localStorage.setItem(progressKey,JSON.stringify({seeds,owned,equipped,potions})); } catch {}
 }
+function equipmentButton(id, onClick, action) {
+  const item = catalog[id];
+  const button = document.createElement('button');
+  button.textContent = item.name;
+  button.title = item.detail;
+  button.setAttribute('aria-label',action + ' ' + item.name);
+  button.addEventListener('click',onClick);
+  return button;
+}
 function renderInventory() {
-  for (const [slot,fallback] of Object.entries({weapon:'SWORD',shield:'SHIELD',upper:'Upper · —',lower:'Lower · —'})) {
-    document.querySelector('#gear-'+slot).textContent = catalog[equipped[slot]]?.name ?? fallback;
-  }
-  itemSlots.forEach((cell,index) => {
-    const id = owned[index];
-    cell.textContent = '—';
-    if (!id) return;
-    const item = catalog[id];
-    const button = document.createElement('button');
-    const active = equipped[item.slot] === id;
-    button.textContent = item.name + (active ? ' ✓' : '');
-    button.setAttribute('aria-pressed',String(active));
-    button.title = item.detail;
-    button.addEventListener('click', () => {
-      if (active) delete equipped[item.slot];
-      else equipped[item.slot] = id;
+  const activeSlots = {weapon:'SWORD',shield:'SHIELD',upper:'Upper · —',lower:'Lower · —'};
+  const storedItems = owned.filter(id => equipped[catalog[id].slot] !== id);
+  for (const [slot,fallback] of Object.entries(activeSlots)) {
+    const cell = document.querySelector('#gear-'+slot);
+    const id = equipped[slot];
+    cell.textContent = fallback;
+    if (!id) continue;
+    cell.replaceChildren(equipmentButton(id, () => {
+      delete equipped[slot];
       saveSeeds();
       renderInventory();
-      cell.firstElementChild.focus();
-    });
-    cell.replaceChildren(button);
+      itemSlots[owned.filter(itemId => equipped[catalog[itemId].slot] !== itemId).indexOf(id)].firstElementChild.focus();
+    }, 'Ta av'));
+  }
+  itemSlots.forEach((cell,index) => {
+    const id = storedItems[index];
+    cell.textContent = '—';
+    if (!id) return;
+    const slot = catalog[id].slot;
+    cell.replaceChildren(equipmentButton(id, () => {
+      equipped[slot] = id;
+      saveSeeds();
+      renderInventory();
+      document.querySelector('#gear-'+slot+' button').focus();
+    }, 'Utrusta'));
   });
   potionSlots.forEach((button,index) => {
     button.textContent = (index+1) + ' · ' + (index < potions ? 'Drick +30 HP' : 'Tom');
