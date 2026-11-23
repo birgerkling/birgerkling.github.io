@@ -63,7 +63,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
   <h2 id="shop-title">🫐 Blåbärsbutiken</h2>
   <p id="shop-message" aria-live="polite">Hej Bloo! Vad vill du köpa?</p>
   <div class="shop-actions">
-    <div class="shop-stock"><button data-buy="bow">Bow · 12 Seeds<small>6 skada per pil · 1 sekund mellan skotten</small></button><button data-buy="steel">Steel Sword · 16 Seeds<small>12 skada</small></button><button data-buy="axe">Battle Axe · 30 Seeds<small>25 skada · Efter Onion Lord</small></button><button data-buy="morning">Morning Star · 45 Seeds<small>30 skada · Efter Mega Muffin</small></button><button data-buy="daggers">Twin Daggers · 60 Seeds<small>8 × 2 skada · Efter pastabossen</small></button><button data-buy="iron">Iron Shield · 14 Seeds<small>80 % skydd</small></button><button data-buy="tower">Tower Shield · 28 Seeds<small>80 % skydd · Efter Onion Lord</small></button><button data-buy="platinum">Platinum Shield · 65 Seeds<small>100 % skydd · Efter pastabossen</small></button><button data-buy="vest">Lövväst · 8 Seeds<small>−2 skada per träff</small></button><button data-buy="pants">Barkbyxor · 8 Seeds<small>−2 skada per träff</small></button><button data-buy="potion">Healing Potion · 5 Seeds<small>Återställer upp till 30 HP</small></button><button data-buy="speedPotion">Speed Potion · 7 Seeds<small>+50 % fart i 8 sekunder</small></button></div>
+    <div class="shop-stock"><button data-buy="bow">Bow · 12 Seeds<small>6 skada per pil · 1 sekund mellan skotten</small></button><button data-buy="steel">Steel Sword · 16 Seeds<small>12 skada</small></button><button data-buy="axe">Battle Axe · 30 Seeds<small>25 skada · Efter Onion Lord</small></button><button data-buy="morning">Morning Star · 45 Seeds<small>30 skada · Efter Mega Muffin</small></button><button data-buy="daggers">Twin Daggers · 60 Seeds<small>8 × 2 skada · Efter pastabossen</small></button><button data-buy="iron">Iron Shield · 14 Seeds<small>80 % skydd</small></button><button data-buy="tower">Tower Shield · 28 Seeds<small>80 % skydd · Efter Onion Lord</small></button><button data-buy="spiked">Spiked Shield · 45 Seeds<small>70 % skydd · 30 % tillbaka till angriparen · Efter Mega Muffin</small></button><button data-buy="platinum">Platinum Shield · 65 Seeds<small>100 % skydd · Efter pastabossen</small></button><button data-buy="vest">Lövväst · 8 Seeds<small>−2 skada per träff</small></button><button data-buy="pants">Barkbyxor · 8 Seeds<small>−2 skada per träff</small></button><button data-buy="potion">Healing Potion · 5 Seeds<small>Återställer upp till 30 HP</small></button><button data-buy="speedPotion">Speed Potion · 7 Seeds<small>+50 % fart i 8 sekunder</small></button></div>
     <form method="dialog"><button>Stäng</button></form>
   </div>
 </dialog>
@@ -121,7 +121,7 @@ const catalog = {
   daggers: {"name":"Twin Daggers","cost":60,"power":8,"delay":0.225,"gate":"Efter pastabossen","slot":"weapon","detail":"8 × 2 skada"},
   iron: {"name":"Iron Shield","cost":14,"block":0.8,"angle":55,"gate":"","slot":"shield","detail":"80 % skydd · 110°"},
   tower: {"name":"Tower Shield","cost":28,"block":0.8,"angle":90,"gate":"Efter Onion Lord","slot":"shield","detail":"80 % skydd · 180°"},
-  spiked: {"name":"Spiked Shield","cost":0,"block":0.7,"angle":125,"gate":"Efter Mega Muffin","slot":"shield","detail":"70 % skydd · 250°"},
+  spiked: {"name":"Spiked Shield","cost":45,"block":0.7,"angle":125,"gate":"Efter Mega Muffin","slot":"shield","detail":"70 % skydd · 250°"},
   platinum: {"name":"Platinum Shield","cost":65,"block":1,"angle":180,"gate":"Efter pastabossen","slot":"shield","detail":"100 % skydd · 360°"},
   "vest": {
     "name": "Lövväst",
@@ -358,7 +358,7 @@ function weaponUnlocked(id) {
   if (id === 'tower') return ovenUnlocked;
   if (id === 'platinum') return pastaDefeated;
   if (id === 'axe') return ovenUnlocked;
-  if (id === 'morning') return muffinDefeated;
+  if (id === 'morning' || id === 'spiked') return muffinDefeated;
   if (id === 'daggers') return pastaDefeated;
   return true;
 }
