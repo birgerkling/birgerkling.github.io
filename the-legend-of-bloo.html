@@ -38,10 +38,10 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
-<footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för vapnet · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra. R öppnar butiken · T öppnar kistor när du står nära.</span><button id="chest-open" hidden>Öppna kista · T</button><button id="shop-open" hidden>Butik · R</button><button id="accounts-open" aria-haspopup="dialog">Accounts</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
+<footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för vapnet · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra. R öppnar butiken · T öppnar kistor när du står nära.</span><button id="chest-open" hidden>Öppna kista · T</button><button id="shop-open" hidden>Butik · R</button><button id="replay-prologue" aria-haspopup="dialog">Se loren igen</button><button id="accounts-open" aria-haspopup="dialog">Accounts</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
 <div class="controls"><div id="joystick" role="group" aria-label="Joystick. Dra för att styra Bloo."><span aria-hidden="true"></span></div><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ Tree Sword</button><div id="attack-stick" role="group" aria-label="Svärd. Håll åt ett håll för att slå upprepade gånger."><span aria-hidden="true">⚔</span></div><button data-key="KeyF">⬟ Wooden Shield</button><button id="bow-fire" hidden>Bow · Mellanslag</button></div></div>
 <dialog id="prologue" lang="en" aria-label="Prologue">
-  <img id="story-art" src="./bloo-prologue/1.jpg" alt="">
+  <img id="story-art" src="./bloo-prologue/2.jpg" alt="">
   <div class="story-caption">
     <p id="story-line" aria-live="polite"></p>
     <button id="story-next" autofocus>Next →</button>
@@ -437,7 +437,8 @@ const storyLine = document.querySelector('#story-line');
 const storyNext = document.querySelector('#story-next');
 let storyIndex = 0;
 function renderStoryScene() {
-  storyArt.src = './bloo-prologue/'+(storyIndex+1)+'.jpg';
+  const scenes = ['2.jpg','balance.jpg','3.jpg','4.jpg','5.jpg'];
+  storyArt.src = './bloo-prologue/'+scenes[storyIndex];
   storyLine.textContent = storyLines[storyIndex];
   storyNext.textContent = storyIndex === storyLines.length-1 ? 'Begin adventure →' : 'Next →';
 }
@@ -448,9 +449,11 @@ storyNext.addEventListener('click', () => {
     renderStoryScene();
   }
 });
+document.querySelector('#replay-prologue').addEventListener('click', () => showPrologue(true));
 prologue.addEventListener('cancel', event => event.preventDefault());
-function showPrologue() {
-  if (illustratedPrologueSeen) return;
+function showPrologue(replay = false) {
+  if (illustratedPrologueSeen && !replay) return;
+  clearInputs();
   storyIndex = 0;
   renderStoryScene();
   prologue.showModal();
