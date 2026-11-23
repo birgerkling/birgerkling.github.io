@@ -26,6 +26,9 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 #attack-stick{display:none;width:76px;height:76px;place-items:center;touch-action:none;user-select:none;border:2px solid #ad8496;border-radius:50%;background:#412b43}
 #attack-stick span{display:grid;place-items:center;width:35px;height:35px;border-radius:50%;background:#755063;pointer-events:none}
 @media(pointer:coarse){.controls{touch-action:none;user-select:none;-webkit-user-select:none}#attack-stick{display:grid}.actions [data-key="KeyE"]{display:none}}
+#prologue{width:min(600px,calc(100% - 24px));max-height:calc(100dvh - 24px);border:3px solid #e2aa62;border-radius:0;background:#261939;box-shadow:inset 0 0 0 4px #503154;color:#fff0bc;font:bold clamp(13px,2.7vw,16px)/1.65 'Courier New',monospace;text-shadow:1px 2px #160e27}
+#prologue h2{color:#ffcf77;letter-spacing:2px;text-transform:uppercase}
+#prologue button{border-radius:0;font:inherit}
 </style>
 <main>
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
@@ -33,6 +36,14 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
 <footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för vapnet · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra. R öppnar butiken · T öppnar kistor när du står nära.</span><button id="chest-open" hidden>Öppna kista · T</button><button id="shop-open" hidden>Butik · R</button><button id="accounts-open" aria-haspopup="dialog">Accounts</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
 <div class="controls"><div id="joystick" role="group" aria-label="Joystick. Dra för att styra Bloo."><span aria-hidden="true"></span></div><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ Tree Sword</button><div id="attack-stick" role="group" aria-label="Svärd. Håll åt ett håll för att slå upprepade gånger."><span aria-hidden="true">⚔</span></div><button data-key="KeyF">⬟ Wooden Shield</button><button id="bow-fire" hidden>Bow · Mellanslag</button></div></div>
+<dialog id="prologue" lang="en" aria-labelledby="prologue-title">
+  <h2 id="prologue-title">Prologue</h2>
+  <p>A long time ago, in Kitchen Land, the legendary Sugar Spice was stolen from the blueberries. King Potato and his crew had taken it to find the fine balance between spice and sweet.</p>
+  <p>But what could the blueberries even do?</p>
+  <p>Then a brave warrior by the name of Bloo showed up. He was no ordinary blueberry. He was the one who could take back the Sugar Spice!</p>
+  <p>He accepted.</p>
+  <form method="dialog"><button autofocus>Begin adventure →</button></form>
+</dialog>
 <dialog id="accounts" aria-labelledby="accounts-title">
   <h2 id="accounts-title">Accounts</h2>
   <p id="accounts-message" role="status"></p>
@@ -409,6 +420,16 @@ for (const button of stock) button.addEventListener('click', () => {
   shopMessage.textContent = item.name + ' lades i Items. ' + seeds + ' Seeds kvar.' + (bagFull() ? ' Items är nu fullt.' : '');
   refreshShop();
 });
+const prologue = document.querySelector('#prologue');
+let prologueSeen = false;
+function showPrologue() {
+  if (!prologueSeen) prologue.showModal();
+}
+prologue.addEventListener('close', () => {
+  prologueSeen = true;
+  clearInputs();
+  saveGame();
+});
 const accounts = document.querySelector('#accounts');
 const accountsMessage = document.querySelector('#accounts-message');
 const savedGames = document.querySelector('#saved-games');
@@ -418,7 +439,7 @@ let activeGame = '1';
 let lastAutoSave = 0;
 
 function saveGame() {
-  games[activeGame] = {seeds,ovenUnlocked,muffinDefeated,pastaDefeated,owned:[...owned],equipped:{...equipped},potions:[...potions],
+  games[activeGame] = {prologueSeen,seeds,ovenUnlocked,muffinDefeated,pastaDefeated,owned:[...owned],equipped:{...equipped},potions:[...potions],
     storedPotions:[...storedPotions],openedChests:[...openedChests],
     world:{area,bloo:{...bloo,guard:false,swing:0},broken,onion:onion && {...onion},
       muffin:muffin && {...muffin,sprinkles:muffin.sprinkles.map(drop => ({...drop}))},
@@ -433,6 +454,7 @@ function saveGame() {
 function loadGame(id) {
   activeGame = id;
   const saved = games[id];
+  prologueSeen = saved?.prologueSeen === true;
   restoreProgress(saved);
   reset();
   const world = saved?.world;
@@ -466,6 +488,7 @@ function renderAccounts(message) {
       loadGame(id);
       saveGame();
       accounts.close();
+    showPrologue();
     });
     savedGames.append(button);
   }
@@ -487,6 +510,7 @@ document.querySelector('#new-game').addEventListener('click', () => {
   loadGame(id);
   saveGame();
   accounts.close();
+  showPrologue();
 });
 
 function saveSeeds() {
@@ -738,7 +762,7 @@ function strike(damage,id) {
   if (reward) awardSeeds(reward);
 }
 document.addEventListener('keydown', event => {
-  if (accounts.open) return;
+  if (prologue.open || accounts.open) return;
   if (['Digit1','Digit2','Numpad1','Numpad2'].includes(event.code) && !shop.open) {
     event.preventDefault();
     if (!event.repeat) drinkPotion(Number(event.code.slice(-1))-1);
@@ -897,7 +921,7 @@ function canMove(x,y) {
       y > o.y*scale-9 && y < (o.y+o.h)*scale+9);
 }
 function update(dt) {
-  if (accounts.open || shop.open || inventory.open) return;
+  if (prologue.open || accounts.open || shop.open || inventory.open) return;
   for (const pea of enemies) {
     if (pea.hp) continue;
     pea.respawn -= dt;
@@ -1931,6 +1955,7 @@ try {
   // The game also supports sessions without browser storage.
 }
 loadGame(activeGame);
+showPrologue();
 saveGame();
 window.addEventListener('pagehide',saveGame);
 requestAnimationFrame(frame);
