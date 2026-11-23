@@ -29,6 +29,10 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 #prologue{width:min(600px,calc(100% - 24px));max-height:calc(100dvh - 24px);border:3px solid #e2aa62;border-radius:0;background:#261939;box-shadow:inset 0 0 0 4px #503154;color:#fff0bc;font:bold clamp(13px,2.7vw,16px)/1.65 'Courier New',monospace;text-shadow:1px 2px #160e27}
 #prologue h2{color:#ffcf77;letter-spacing:2px;text-transform:uppercase}
 #prologue button{border-radius:0;font:inherit}
+#prologue{width:min(960px,calc(100% - 18px));padding:0}
+#story-art{display:block;width:100%;aspect-ratio:16/9;max-height:65dvh;object-fit:contain;background:#201533}
+.story-caption{padding:12px clamp(12px,4vw,28px) 16px;text-align:center}
+#story-line{margin:0 0 10px}
 </style>
 <main>
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
@@ -36,14 +40,12 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
 <footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för vapnet · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra. R öppnar butiken · T öppnar kistor när du står nära.</span><button id="chest-open" hidden>Öppna kista · T</button><button id="shop-open" hidden>Butik · R</button><button id="accounts-open" aria-haspopup="dialog">Accounts</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
 <div class="controls"><div id="joystick" role="group" aria-label="Joystick. Dra för att styra Bloo."><span aria-hidden="true"></span></div><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ Tree Sword</button><div id="attack-stick" role="group" aria-label="Svärd. Håll åt ett håll för att slå upprepade gånger."><span aria-hidden="true">⚔</span></div><button data-key="KeyF">⬟ Wooden Shield</button><button id="bow-fire" hidden>Bow · Mellanslag</button></div></div>
-<dialog id="prologue" lang="en" aria-labelledby="prologue-title">
-  <h2 id="prologue-title">Prologue</h2>
-  <p>A long time ago, in Kitchen Land, the legendary Sugar Spice was stolen from the blueberries. King Potato and his crew had taken it to find the fine balance between spice and sweet.</p>
-  <p>The blueberries were forced to pack up and flee.</p>
-  <p>But what could the blueberries even do?</p>
-  <p>Then a brave warrior by the name of Bloo showed up. He was no ordinary blueberry. He was the one who could take back the Sugar Spice!</p>
-  <p>He accepted.</p>
-  <form method="dialog"><button autofocus>Begin adventure →</button></form>
+<dialog id="prologue" lang="en" aria-label="Prologue">
+  <img id="story-art" src="./bloo-prologue/1.jpg" alt="">
+  <div class="story-caption">
+    <p id="story-line" aria-live="polite"></p>
+    <button id="story-next" autofocus>Next →</button>
+  </div>
 </dialog>
 <dialog id="accounts" aria-labelledby="accounts-title">
   <h2 id="accounts-title">Accounts</h2>
@@ -422,12 +424,39 @@ for (const button of stock) button.addEventListener('click', () => {
   refreshShop();
 });
 const prologue = document.querySelector('#prologue');
-let prologueSeen = false;
+let illustratedPrologueSeen = false;
+const storyLines = [
+  'A long time ago, in kitchenland, the legendary sugar spice was stolen from the blueberrys.',
+  'King Potato and his crew had taken it to find the fine balance beetween spice and sweet.',
+  'The blueberrys was forced to package and flee their way.',
+  'Then a brave warrior by the name bloo showed up he was no ordinary blueberry! he was the one who could take back the sugar spice.',
+  'He accepted'
+];
+const storyArt = document.querySelector('#story-art');
+const storyLine = document.querySelector('#story-line');
+const storyNext = document.querySelector('#story-next');
+let storyIndex = 0;
+function renderStoryScene() {
+  storyArt.src = './bloo-prologue/'+(storyIndex+1)+'.jpg';
+  storyLine.textContent = storyLines[storyIndex];
+  storyNext.textContent = storyIndex === storyLines.length-1 ? 'Begin adventure →' : 'Next →';
+}
+storyNext.addEventListener('click', () => {
+  if (storyIndex === storyLines.length-1) prologue.close();
+  else {
+    storyIndex++;
+    renderStoryScene();
+  }
+});
+prologue.addEventListener('cancel', event => event.preventDefault());
 function showPrologue() {
-  if (!prologueSeen) prologue.showModal();
+  if (illustratedPrologueSeen) return;
+  storyIndex = 0;
+  renderStoryScene();
+  prologue.showModal();
 }
 prologue.addEventListener('close', () => {
-  prologueSeen = true;
+  illustratedPrologueSeen = true;
   clearInputs();
   saveGame();
 });
@@ -440,7 +469,7 @@ let activeGame = '1';
 let lastAutoSave = 0;
 
 function saveGame() {
-  games[activeGame] = {prologueSeen,seeds,ovenUnlocked,muffinDefeated,pastaDefeated,owned:[...owned],equipped:{...equipped},potions:[...potions],
+  games[activeGame] = {illustratedPrologueSeen,seeds,ovenUnlocked,muffinDefeated,pastaDefeated,owned:[...owned],equipped:{...equipped},potions:[...potions],
     storedPotions:[...storedPotions],openedChests:[...openedChests],
     world:{area,bloo:{...bloo,guard:false,swing:0},broken,onion:onion && {...onion},
       muffin:muffin && {...muffin,sprinkles:muffin.sprinkles.map(drop => ({...drop}))},
@@ -455,7 +484,7 @@ function saveGame() {
 function loadGame(id) {
   activeGame = id;
   const saved = games[id];
-  prologueSeen = saved?.prologueSeen === true;
+  illustratedPrologueSeen = saved?.illustratedPrologueSeen === true;
   restoreProgress(saved);
   reset();
   const world = saved?.world;
