@@ -86,6 +86,11 @@ const fridgeScale = 3;
 const ovenScale = 4;
 const ovenDoor = {x:341,y:81};
 const ovenExitX = 240;
+const muffinDoorX = 54;
+const muffinMaxHP = 1000;
+const muffinEyes = [{x:218,y:107},{x:262,y:107}];
+const sprinkleColors = ['#fa75ad','#75c5fa','#f9cc59','#b388f4'];
+let muffin = null;
 const ovenWalls = [
   {x:112,y:19,w:15,h:177}, {x:200,y:70,w:15,h:200},
   {x:278,y:19,w:15,h:176}, {x:366,y:77,w:15,h:193},
@@ -272,6 +277,7 @@ function reset() {
   bloo = {x:110,y:145,fx:1,fy:0,swing:0,guard:false,flash:0,step:0};
   area = 'counter';
   onion = null;
+  muffin = null;
   climb = null;
   shots = [];
   arrows = [];
@@ -383,6 +389,7 @@ function saveGame() {
   games[activeGame] = {seeds,ovenUnlocked,owned:[...owned],equipped:{...equipped},potions:[...potions],
     storedPotions:[...storedPotions],openedChests:[...openedChests],
     world:{area,bloo:{...bloo,guard:false,swing:0},broken,onion:onion && {...onion},
+      muffin:muffin && {...muffin,sprinkles:muffin.sprinkles.map(drop => ({...drop}))},
       enemies:enemies.map(enemy => ({...enemy})),climb:climb && {...climb},bowCooldown,tearsCooldown,onionThrow,tearCloud}};
   try {
     localStorage.setItem(accountsKey,JSON.stringify({activeGame,games}));
@@ -397,8 +404,8 @@ function loadGame(id) {
   restoreProgress(saved);
   reset();
   const world = saved?.world;
-  if (world && ['counter','floor','fridge','boss','oven'].includes(world.area) &&
-      (world.area !== 'boss' || world.onion)) {
+  if (world && ['counter','floor','fridge','boss','oven','muffin'].includes(world.area) &&
+      (world.area !== 'muffin' || world.muffin) && (world.area !== 'boss' || world.onion)) {
     const newEnemies = enemies;
     ({area,bloo,broken,onion,enemies,climb,bowCooldown,tearsCooldown} = world);
     onionThrow = world.onionThrow ? {...world.onionThrow} : null;
@@ -407,6 +414,7 @@ function loadGame(id) {
     enemies = enemies.map(enemy => ({...enemy}));
     if (!enemies.some(enemy => enemy.cookie)) enemies.push(...newEnemies.filter(enemy => enemy.cookie));
     onion = onion && {...onion};
+    muffin = world.muffin ? {...world.muffin,sprinkles:world.muffin.sprinkles.map(drop => ({...drop}))} : null;
     climb = climb && {...climb};
     showHealth();
     say(bloo.hp ? 'Spel ' + id + ' fortsätter' : 'Bloo föll! Tryck på Börja om.');
@@ -664,6 +672,14 @@ function attack(pointer = swordPointer, direction = null) {
     }
     return;
   }
+  if (area === 'muffin' && muffin.hp) {
+    const eyes = muffin.phase === 'beam' && muffinEyes.some(inSwordRange);
+    const dx = 240-bloo.x, dy = 90-bloo.y;
+    if (eyes || (Math.hypot(dx,dy) < 85 && dx*bloo.swordAim.x+dy*bloo.swordAim.y > 8)) {
+      hitMuffin(damage,eyes);
+    }
+    return;
+  }
   let hit = null;
   let reward = 0;
   for (const pea of enemies) {
@@ -831,7 +847,7 @@ document.querySelector('#reset').addEventListener('click', reset);
 function canMove(x,y) {
   const onFloor = area === 'floor';
   const scale = areaScale();
-  const furniture = onFloor ? floorFurniture : area === 'fridge' ? fridgeBlocks : area === 'oven' ? ovenWalls : area === 'boss' ? [] : obstacles;
+  const furniture = onFloor ? floorFurniture : area === 'fridge' ? fridgeBlocks : area === 'oven' ? ovenWalls : (area === 'boss' || area === 'muffin') ? [] : obstacles;
   return x > 13 && x < 480*scale-13 && y > 19*scale+6 && y < 270*scale-20 &&
     !furniture.some(o => x > o.x*scale-10 && x < (o.x+o.w)*scale+10 &&
       y > o.y*scale-9 && y < (o.y+o.h)*scale+9);
@@ -918,6 +934,22 @@ function update(dt) {
     }
     say('OVEN är låst. Besegra Onion Lord först.');
   }
+  if (area === 'oven' && dy < 0 && Math.abs(bloo.x-muffinDoorX*ovenScale) < 58 &&
+      bloo.y <= 31*ovenScale) {
+    area = 'muffin';
+    Object.assign(bloo,{x:240,y:224});
+    muffin ??= {hp:muffinMaxHP,phase:'rest',time:1.4,next:'sprinkle',angle:Math.PI/2,contact:0,sprinkles:[]};
+    shots = [];
+    arrows = [];
+    say('MEGA MUFFIN!');
+    return;
+  }
+  if (area === 'muffin' && dy > 0 && Math.abs(bloo.x-240) < 37 && bloo.y >= 239) {
+    area = 'oven';
+    Object.assign(bloo,{x:muffinDoorX*ovenScale,y:43*ovenScale});
+    arrows = [];
+    return;
+  }
   if (area === 'oven' && dy > 0 && Math.abs(bloo.x-ovenExitX*ovenScale) < 55 &&
       bloo.y >= 245*ovenScale) {
     area = 'floor';
@@ -978,6 +1010,13 @@ function update(dt) {
       hitOnion(catalog.bow.power,arrow.originX,arrow.originY);
       return false;
     }
+    if (area === 'muffin' && muffin.hp) {
+      const eyes = muffin.phase === 'beam' && muffinEyes.some(eye => Math.hypot(eye.x-arrow.x,eye.y-arrow.y) < 13);
+      if (eyes || Math.hypot(240-arrow.x,90-arrow.y) < (muffin.phase === 'beam' ? 30 : 40)) {
+        hitMuffin(catalog.bow.power,eyes);
+        return false;
+      }
+    }
     const pea = enemies.find(target => target.hp && target.area === area &&
       Math.hypot(target.x-arrow.x,target.y-arrow.y) < 15);
     if (!pea) return true;
@@ -988,6 +1027,7 @@ function update(dt) {
   });
   updateOnionThrow(dt);
   if (area === 'boss') updateOnion(dt);
+  if (area === 'muffin') updateMuffin(dt);
   updateEnemies(dt);
   shopOpen.hidden = !shopNearby();
 }
@@ -1079,6 +1119,65 @@ function updateOnion(dt) {
   } else if (distance > 51) {
     onion.x = Math.max(38,Math.min(442,onion.x+onion.fx*39*dt));
     onion.y = Math.max(49,Math.min(215,onion.y+onion.fy*39*dt));
+  }
+}
+function hitMuffin(damage,eyes) {
+  muffin.hp = Math.max(0,muffin.hp-damage*(eyes ? 2 : .5));
+  if (!muffin.hp) {
+    muffin.phase = 'defeated';
+    muffin.sprinkles = [];
+    saveGame();
+    say('MEGA MUFFIN är besegrad!');
+  } else if (eyes) say('Ögonträff!');
+}
+function updateMuffin(dt) {
+  if (!muffin.hp) return;
+  if (muffin.phase === 'beam') {
+    const dx = bloo.x-240, dy = bloo.y-122;
+    const forward = dx*Math.cos(muffin.angle)+dy*Math.sin(muffin.angle);
+    const side = dx*Math.sin(muffin.angle)-dy*Math.cos(muffin.angle);
+    if (forward >= 0 && Math.abs(side) <= 20) {
+      muffin.contact += dt;
+      if (muffin.contact >= 1) {
+        muffin.contact -= 1;
+        hurt('Chokladstrålen träffade!',10);
+      }
+    }
+  }
+  muffin.time -= dt;
+  if (muffin.time > 0) return;
+  switch (muffin.phase) {
+    case 'rest':
+      if (muffin.next === 'sprinkle') {
+        muffin.phase = 'sprinkle';
+        muffin.time = .9;
+        muffin.sprinkles = Array.from({length:24},(_,i) => ({
+          x:28+i%8*60+Math.random()*16,y:129+Math.floor(i/8)*39+Math.random()*19
+        }));
+      } else {
+        muffin.phase = 'warning';
+        muffin.time = .8;
+        muffin.angle = Math.atan2(bloo.y-122,bloo.x-240);
+      }
+      break;
+    case 'sprinkle':
+      for (const drop of muffin.sprinkles) {
+        if (!bloo.hp) break;
+        if (Math.hypot(bloo.x-drop.x,bloo.y-drop.y) <= 15) hurt('Strösslet träffade!',20);
+      }
+      muffin.phase = 'crumbs';
+      muffin.time = .3;
+      break;
+    case 'warning':
+      muffin.phase = 'beam';
+      muffin.contact = 0;
+      muffin.time = 4;
+      break;
+    default:
+      muffin.next = muffin.phase === 'beam' ? 'sprinkle' : 'beam';
+      muffin.phase = 'rest';
+      muffin.time = 1.3;
+      muffin.sprinkles = [];
   }
 }
 function updateEnemies(dt) {
@@ -1504,12 +1603,75 @@ function drawOven() {
     box('#e29858',o.x,o.y,o.w,3);
     for (let y=o.y+8;y<Math.min(270,o.y+o.h);y+=11) box('#643a39',o.x+2,y,o.w-4,2);
   }
+  box('#351e32',muffinDoorX-21,12,42,23);
+  box('#ef954e',muffinDoorX-19,13,38,3);
+  ctx.font = 'bold 7px monospace';
+  ctx.fillStyle = '#ffdd8f';
+  ctx.fillText('MUFFIN',muffinDoorX-13,26);
   box('#352435',ovenExitX-27,247,54,23);
   ctx.fillStyle = '#ffe1ac';
   ctx.font = 'bold 9px monospace';
   ctx.fillText('↓ KÖKET',ovenExitX-19,261);
 }
+function drawMuffinRoom() {
+  box('#392532',0,0,480,270);
+  for (let x=0;x<480;x+=32) {
+    box('#844735',x,26,29,225);
+    for (let y=28;y<250;y+=28) box('#a95a39',x,y,29,2);
+  }
+  box('#44263a',200,246,80,24);
+  ctx.font = 'bold 10px monospace';
+  ctx.fillStyle = '#ffd998';
+  ctx.fillText('↓ UGNEN',218,261);
+  if (muffin.hp) {
+    if (muffin.phase === 'warning' || muffin.phase === 'beam') {
+      ctx.save();
+      ctx.translate(240,122);
+      ctx.rotate(muffin.angle);
+      box(muffin.phase === 'beam' ? '#5c2928' : '#f8a76680',0,-20,520,40);
+      if (muffin.phase === 'beam') box('#954331',0,-13,520,8);
+      ctx.restore();
+    }
+    muffin.sprinkles.forEach(({x,y},i) => {
+      if (muffin.phase === 'sprinkle') oval('#ffd99188',x,y,15,15);
+      box(sprinkleColors[i%4],x-5,y-2,10,4);
+    });
+    oval('#3b2132',240,121,73,18);
+    for (const x of [171,309]) {
+      oval('#723d32',x,102,22,24);
+      oval('#a75833',x,106,17,18);
+      box('#f779ae',x-9,89,8,3);
+    }
+    box('#573459',187,106,106,34);
+    for (let x=191;x<290;x+=11) box(x%2?'#a65e91':'#84507d',x,108,6,30);
+    oval('#aa582f',240,87,62,35);
+    oval('#ec9247',236,83,56,29);
+    oval('#563026',240,72,61,22);
+    for (const x of [194,215,244,269,282]) oval('#563026',x,80,8,17);
+    for (let i=0;i<15;i++) box(sprinkleColors[i%4],190+i*7,69+(i*7)%14,5,3);
+    oval('#ffcb84',240,53,30,12);
+    oval('#ab3539',250,43,11,10);
+    box('#f7564b',245,37,6,4);
+    box('#874638',255,29,3,8);
+    for (const eye of muffinEyes) {
+      oval('#532a32',eye.x,eye.y,13,10);
+      oval(muffin.phase === 'beam' ? '#fff187' : '#ee9a56',eye.x,eye.y,8,6);
+    }
+    box('#4b2930',232,117,16,7);
+  }
+  drawEnemies();
+  drawBloo();
+  box('#2c1e31',105,4,270,21);
+  box('#6c364b',112,18,256,4);
+  box('#f79f52',112,18,256*muffin.hp/muffinMaxHP,4);
+  ctx.fillStyle = '#ffe5a8';
+  ctx.fillText('MEGA MUFFIN · '+Math.ceil(muffin.hp)+' / '+muffinMaxHP,162,14);
+}
 function draw() {
+  if (area === 'muffin') {
+    drawMuffinRoom();
+    return;
+  }
   if (area === 'boss') {
     drawOnionRoom();
     return;
