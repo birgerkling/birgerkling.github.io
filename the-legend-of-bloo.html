@@ -1163,9 +1163,24 @@ function hitMuffin(damage,eyes,reflected = false) {
     say('MEGA MUFFIN är besegrad!');
   } else if (eyes) say('Ögonträff!');
 }
+function aimMuffinSprinkles() {
+  const x = bloo.x, y = bloo.y;
+  muffin.sprinkles = Array.from({length:24},(_,i) => {
+    if (i >= 12) return {x:27+(i-12)%6*84,y:133+Math.floor((i-12)/6)*87};
+    const angle = i*Math.PI/3;
+    const radius = i < 6 ? 26 : 57;
+    return {x:Math.max(18,Math.min(462,x+Math.cos(angle)*radius)),
+      y:Math.max(29,Math.min(247,y+Math.sin(angle)*radius))};
+  });
+}
 function updateMuffin(dt) {
   if (!muffin.hp) return;
+  const enraged = muffin.hp <= muffinMaxHP/2;
   if (muffin.phase === 'beam') {
+    const target = Math.atan2(bloo.y-122,bloo.x-240);
+    const turn = Math.atan2(Math.sin(target-muffin.angle),Math.cos(target-muffin.angle));
+    const step = (enraged ? 1.18 : .82)*dt;
+    muffin.angle += Math.max(-step,Math.min(step,turn));
     const dx = bloo.x-240, dy = bloo.y-122;
     const forward = dx*Math.cos(muffin.angle)+dy*Math.sin(muffin.angle);
     const side = dx*Math.sin(muffin.angle)-dy*Math.cos(muffin.angle);
@@ -1183,13 +1198,12 @@ function updateMuffin(dt) {
     case 'rest':
       if (muffin.next === 'sprinkle') {
         muffin.phase = 'sprinkle';
-        muffin.time = .9;
-        muffin.sprinkles = Array.from({length:24},(_,i) => ({
-          x:28+i%8*60+Math.random()*16,y:129+Math.floor(i/8)*39+Math.random()*19
-        }));
+        muffin.time = .68;
+        muffin.wavesLeft = enraged ? 3 : 2;
+        aimMuffinSprinkles();
       } else {
         muffin.phase = 'warning';
-        muffin.time = .8;
+        muffin.time = .65;
         muffin.angle = Math.atan2(bloo.y-122,bloo.x-240);
       }
       break;
@@ -1199,7 +1213,20 @@ function updateMuffin(dt) {
         if (Math.hypot(bloo.x-drop.x,bloo.y-drop.y) <= 15) hurt('Strösslet träffade!',20,muffin,{x:240,y:90});
       }
       muffin.phase = 'crumbs';
-      muffin.time = .3;
+      muffin.time = .22;
+      break;
+    case 'crumbs':
+      if (muffin.wavesLeft > 1) {
+        muffin.wavesLeft--;
+        muffin.phase = 'sprinkle';
+        muffin.time = enraged ? .52 : .64;
+        aimMuffinSprinkles();
+        break;
+      }
+      muffin.next = 'beam';
+      muffin.phase = 'rest';
+      muffin.time = .55;
+      muffin.sprinkles = [];
       break;
     case 'warning':
       muffin.phase = 'beam';
@@ -1209,7 +1236,7 @@ function updateMuffin(dt) {
     default:
       muffin.next = muffin.phase === 'beam' ? 'sprinkle' : 'beam';
       muffin.phase = 'rest';
-      muffin.time = 1.3;
+      muffin.time = enraged ? .38 : .55;
       muffin.sprinkles = [];
   }
 }
