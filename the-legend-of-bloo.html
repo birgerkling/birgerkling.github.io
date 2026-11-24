@@ -38,7 +38,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
-<footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för vapnet · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra. R öppnar butiken · T öppnar kistor när du står nära.</span><button id="chest-open" hidden>Öppna kista · T</button><button id="shop-open" hidden>Butik · R</button><button id="replay-prologue" aria-haspopup="dialog">Se loren igen</button><button id="accounts-open" aria-haspopup="dialog">Accounts</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
+<output id="chest-rewards" role="status" style="display:block;color:#ffe1a1;font-weight:bold"></output><footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för vapnet · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra. R öppnar butiken · T öppnar kistor när du står nära.</span><button id="chest-open" hidden>Öppna kista · T</button><button id="shop-open" hidden>Butik · R</button><button id="replay-prologue" aria-haspopup="dialog">Se loren igen</button><button id="accounts-open" aria-haspopup="dialog">Accounts</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
 <div class="controls"><div id="joystick" role="group" aria-label="Joystick. Dra för att styra Bloo."><span aria-hidden="true"></span></div><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ Tree Sword</button><div id="attack-stick" role="group" aria-label="Svärd. Håll åt ett håll för att slå upprepade gånger."><span aria-hidden="true">⚔</span></div><button data-key="KeyF">⬟ Wooden Shield</button><button id="bow-fire" hidden>Bow · Mellanslag</button></div></div>
 <dialog id="prologue" lang="en" aria-label="Prologue">
   <img id="story-art" src="./bloo-prologue/2.jpg" alt="">
@@ -112,7 +112,13 @@ const ovenWalls = [
   {x:293,y:113,w:32,h:14}, {x:418,y:157,w:49,h:15}
 ];
 const chestButton = document.querySelector('#chest-open');
+const pantryScale = 3;
+const pantryLoot = [[93,221],[210,168],[128,55],[332,65],[415,213]];
+const pantryWalls = [{x:153,y:18,w:16,h:111},{x:153,y:185,w:16,h:85},{x:278,y:74,w:17,h:149},{x:370,y:18,w:16,h:139}];
+const titanMaxHP = 5000;
+let titan = null;
 const chests = [
+  ...pantryLoot.map(([x,y],i)=>({id:'pantry-'+i,area:'pantry',x:x*3,y:y*3,seeds:35+i*10,item:['potion','speedPotion','potion','speedPotion','potion'][i]})),
   {id:'onion-chain-upper',area:'boss',x:165,y:57,seeds:0,item:'chainUpper',golden:true},
   {id:'onion-chain-lower',area:'boss',x:315,y:57,seeds:0,item:'chainLower',golden:true},
   {id:'muffin-iron-upper',area:'muffin',x:310,y:53,seeds:0,item:'ironUpper',afterMuffin:true},
@@ -176,6 +182,7 @@ const obstacles = [
 ];
 const cracker = {x:225,y:144};
 const enemySpawns = [
+  ...pantryLoot.flatMap(([x,y])=>[[-16,0],[16,0],[0,-17]].map(([dx,dy])=>({area:'pantry',x:(x+dx)*3,y:(y+dy)*3,bean:true}))),
   ...[[248,110],[161,47],[59,168],[332,144],[426,93]].map(([x,y]) =>
     ({area:'oven',x:x*ovenScale,y:y*ovenScale,cookie:true})),
   {area:'counter',x:410,y:80},
@@ -223,7 +230,7 @@ const ladderX = 177;
 const floorScale = 3;
 const shopkeeper = {x:ladderX*floorScale+100,y:106*floorScale+8};
 function areaScale() {
-  return area === 'floor' ? floorScale : area === 'fridge' ? fridgeScale : area === 'oven' ? ovenScale : 1;
+  return area === 'floor' ? floorScale : area === 'fridge' ? fridgeScale : area === 'oven' ? ovenScale : area === 'pantry' ? pantryScale : 1;
 }
 let swordPointer = null;
 let ovenUnlocked = false;
@@ -280,6 +287,7 @@ function reset() {
   area = 'counter';
   onion = null;
   muffin = null;
+  titan = null;
   climb = null;
   shots = [];
   arrows = [];
@@ -287,7 +295,7 @@ function reset() {
   onionThrow = null;
   tearCloud = null;
   tearsCooldown = 0;
-  enemies = enemySpawns.map((spawn,index) => ({...spawn,maxHP:spawn.cookie ? 100 : spawn.egg ? 50 : 20,hp:spawn.cookie ? 100 : spawn.egg ? 50 : 20,homeX:spawn.x,homeY:spawn.y,cooldown:.6+index%3*.35,flash:0}));
+  enemies = enemySpawns.map((spawn,index) => ({...spawn,maxHP:spawn.bean ? 150 : spawn.cookie ? 100 : spawn.egg ? 50 : 20,hp:spawn.bean ? 150 : spawn.cookie ? 100 : spawn.egg ? 50 : 20,homeX:spawn.x,homeY:spawn.y,cooldown:.6+index%3*.35,flash:0}));
   bloo.hp = maxHP;
   bloo.speedBoost = 0;
   bloo.sinceHit = 0;
@@ -378,6 +386,10 @@ function openChest() {
   saveSeeds();
   chestButton.hidden = true;
   const loot = [reward ? '+' + reward + ' Seeds' : '',item?.name].filter(Boolean);
+  const chestRewards = document.querySelector('#chest-rewards');
+  chestRewards.textContent = 'Kista: ' + loot.join(' och ');
+  clearTimeout(chestRewards.hideTimer);
+  chestRewards.hideTimer = setTimeout(()=>{chestRewards.textContent='';},5500);
   say((chest.golden ? 'GOLDEN CHEST: ' : 'Kista: ') + loot.join(' och ') + '!');
 }
 chestButton.addEventListener('click',openChest);
@@ -475,6 +487,7 @@ function saveGame() {
   games[activeGame] = {illustratedPrologueSeen,seeds,ovenUnlocked,muffinDefeated,pastaDefeated,owned:[...owned],equipped:{...equipped},potions:[...potions],
     storedPotions:[...storedPotions],openedChests:[...openedChests],
     world:{area,bloo:{...bloo,guard:false,swing:0},broken,onion:onion && {...onion},
+      titan:titan && {...titan,balls:titan.balls.map(ball=>({...ball}))},
       muffin:muffin && {...muffin,sprinkles:muffin.sprinkles.map(drop => ({...drop}))},
       enemies:enemies.map(enemy => ({...enemy})),climb:climb && {...climb},bowCooldown,tearsCooldown,onionThrow,tearCloud}};
   try {
@@ -491,7 +504,7 @@ function loadGame(id) {
   restoreProgress(saved);
   reset();
   const world = saved?.world;
-  if (world && ['counter','floor','fridge','boss','oven','muffin'].includes(world.area) &&
+  if (world && ['counter','floor','fridge','boss','oven','muffin','pantry','titan'].includes(world.area) &&
       (world.area !== 'muffin' || world.muffin) && (world.area !== 'boss' || world.onion)) {
     const newEnemies = enemies;
     ({area,bloo,broken,onion,enemies,climb,bowCooldown,tearsCooldown} = world);
@@ -501,6 +514,8 @@ function loadGame(id) {
     enemies = enemies.map(enemy => ({...enemy}));
     if (!enemies.some(enemy => enemy.cookie)) enemies.push(...newEnemies.filter(enemy => enemy.cookie));
     onion = onion && {...onion};
+    titan = world.titan ? {...world.titan,balls:world.titan.balls.map(ball=>({...ball}))} : null;
+    if (!enemies.some(enemy=>enemy.bean)) enemies.push(...newEnemies.filter(enemy=>enemy.bean));
     muffin = world.muffin ? {...world.muffin,sprinkles:world.muffin.sprinkles.map(drop => ({...drop}))} : null;
     climb = climb && {...climb};
     showHealth();
@@ -781,6 +796,12 @@ function strike(damage,id) {
     }
     return;
   }
+  if (area === 'titan' && titan?.hp) {
+    if (titanTips().some(inSwordRange)) damageTitan(damage,true);
+    else if (Math.hypot(titan.x-bloo.x,titan.y-bloo.y)<72 &&
+      (titan.x-bloo.x)*bloo.swordAim.x+(titan.y-bloo.y)*bloo.swordAim.y>0) damageTitan(damage,false);
+    return;
+  }
   let hit = null;
   let reward = 0;
   for (const pea of enemies) {
@@ -948,7 +969,7 @@ document.querySelector('#reset').addEventListener('click', reset);
 function canMove(x,y) {
   const onFloor = area === 'floor';
   const scale = areaScale();
-  const furniture = onFloor ? floorFurniture : area === 'fridge' ? fridgeBlocks : area === 'oven' ? ovenWalls : (area === 'boss' || area === 'muffin') ? [] : obstacles;
+  const furniture = onFloor ? floorFurniture : area === 'fridge' ? fridgeBlocks : area === 'oven' ? ovenWalls : area === 'pantry' ? pantryWalls : (area === 'boss' || area === 'muffin' || area === 'titan') ? [] : obstacles;
   return x > 13 && x < 480*scale-13 && y > 19*scale+6 && y < 270*scale-20 &&
     !furniture.some(o => x > o.x*scale-10 && x < (o.x+o.w)*scale+10 &&
       y > o.y*scale-9 && y < (o.y+o.h)*scale+9);
@@ -971,7 +992,7 @@ function update(dt) {
   if (!bloo.hp) return;
   const healTime = Math.max(0,bloo.sinceHit+dt-regenDelay) - Math.max(0,bloo.sinceHit-regenDelay);
   bloo.sinceHit = Math.min(regenDelay,bloo.sinceHit+dt);
-  if (healTime && bloo.hp < maxHP) {
+  if (!(area === 'titan' && titan?.hp) && healTime && bloo.hp < maxHP) {
     bloo.hp = Math.min(maxHP,bloo.hp+healTime*regenPerSecond+1e-9);
     showHealth();
   }
@@ -1065,6 +1086,20 @@ function update(dt) {
     say('Tillbaka i köket');
     return;
   }
+  if (area === 'floor' && dy > 0 && bloo.y > 755 && bloo.x > 1330) {
+    area = 'pantry'; Object.assign(bloo,{x:108,y:720}); shots=[]; arrows=[]; return;
+  }
+  if (area === 'pantry' && dy > 0 && bloo.x < 165 && bloo.y > 750) {
+    area = 'floor'; Object.assign(bloo,{x:1370,y:741}); shots=[]; arrows=[]; return;
+  }
+  if (area === 'pantry' && dy < 0 && bloo.x > 1250 && bloo.y < 91) {
+    area = 'titan'; Object.assign(bloo,{x:240,y:224}); shots=[]; arrows=[];
+    titan ??= {x:240,y:90,hp:pastaDefeated ? 0 : titanMaxHP,clock:1.4,drain:0,stun:0,warning:0,attack:0,balls:[],angle:0};
+    return;
+  }
+  if (area === 'titan' && !titan.hp && dy > 0 && Math.abs(bloo.x-240)<40 && bloo.y>238) {
+    area='pantry'; Object.assign(bloo,{x:1335,y:115}); arrows=[]; return;
+  }
   const atFridgeDoor = area === 'floor' && dy < 0 &&
     Math.abs(bloo.x-fridgeDoor.x*floorScale) < 29 &&
     bloo.y <= fridgeDoor.y*floorScale+32;
@@ -1123,6 +1158,10 @@ function update(dt) {
         return false;
       }
     }
+    if (area === 'titan' && titan?.hp && Math.hypot(titan.x-arrow.x,titan.y-arrow.y)<43) {
+      damageTitan(catalog.bow.power,false);
+      return false;
+    }
     const pea = enemies.find(target => target.hp && target.area === area &&
       Math.hypot(target.x-arrow.x,target.y-arrow.y) < 15);
     if (!pea) return true;
@@ -1134,6 +1173,7 @@ function update(dt) {
   updateOnionThrow(dt);
   if (area === 'boss') updateOnion(dt);
   if (area === 'muffin') updateMuffin(dt);
+  if (area === 'titan') updateTitan(dt);
   updateEnemies(dt);
   shopOpen.hidden = !shopNearby();
 }
@@ -1314,6 +1354,60 @@ function updateMuffin(dt) {
       muffin.sprinkles = [];
   }
 }
+function titanTips() {
+  return [-.85,.85].map(offset=>({x:titan.x+Math.cos(titan.angle+offset)*64,
+    y:titan.y+Math.sin(titan.angle+offset)*64}));
+}
+function damageTitan(damage,whip) {
+  titan.hp=Math.max(0,titan.hp-damage*(whip?2:.6));
+  if(whip) titan.stun=2;
+  if(!titan.hp) { pastaDefeated=true; titan.balls=[]; saveGame(); say('Spaghetti Titan är besegrad!'); }
+}
+function updateTitan(dt) {
+  if(!titan?.hp) return;
+  titan.drain+=dt;
+  if(titan.drain>=.5){
+    titan.drain-=.5;
+    bloo.hp=Math.max(0,bloo.hp-1);
+    bloo.sinceHit=0;
+    showHealth();
+    if(!bloo.hp) {say('Bloo föll! Tryck på Börja om.');return;}
+  }
+  titan.balls=titan.balls.filter(ball=>{
+    ball.x+=ball.vx*dt; ball.y+=ball.vy*dt;
+    if(bloo.hp && Math.hypot(ball.x-bloo.x,ball.y-bloo.y)<25){
+      hurt('Köttbulle!',30,titan,{x:bloo.x-ball.vx,y:bloo.y-ball.vy});
+      return false;
+    }
+    return ball.x>-25&&ball.x<505&&ball.y>-25&&ball.y<295;
+  });
+  titan.stun=Math.max(0,titan.stun-dt);
+  if(titan.stun || !bloo.hp) return;
+  if(titan.warning>0){
+    titan.warning=Math.max(0,titan.warning-dt);
+    if(titan.warning) return;
+    if(titan.attack%2===0){
+      for(const offset of [-.25,0,.25]){
+        const angle=titan.angle+offset;
+        titan.balls.push({x:titan.x,y:titan.y,vx:142*Math.cos(angle),vy:142*Math.sin(angle)});
+      }
+    } else if(titanTips().some(p=>Math.hypot(p.x-bloo.x,p.y-bloo.y)<28) ||
+        Math.hypot(titan.x+Math.cos(titan.angle)*50-bloo.x,titan.y+Math.sin(titan.angle)*50-bloo.y)<33){
+      hurt('Pastapiska!',20,titan,titan,true);
+    }
+    titan.attack++;
+    titan.clock=1.15;
+    return;
+  }
+  const dx=bloo.x-titan.x,dy=bloo.y-titan.y;
+  titan.angle=Math.atan2(dy,dx);
+  if(Math.hypot(dx,dy)>58){
+    titan.x=Math.max(53,Math.min(427,titan.x+32*dt*Math.cos(titan.angle)));
+    titan.y=Math.max(57,Math.min(202,titan.y+32*dt*Math.sin(titan.angle)));
+  }
+  titan.clock-=dt;
+  if(titan.clock<=0)titan.warning=.65;
+}
 function updateEnemies(dt) {
   for (const pea of enemies) {
     if (pea.area !== area || !pea.hp) continue;
@@ -1323,6 +1417,18 @@ function updateEnemies(dt) {
     const {x:dx,y:dy} = enemyAim(pea);
     const distance = Math.hypot(dx,dy);
     const actualDistance = Math.hypot(bloo.x-pea.x,bloo.y-pea.y);
+    if (pea.bean) {
+      if (actualDistance < 29 && !pea.cooldown) {
+        if (distance < 29) hurt('Bönans taggklubba!',20,pea,pea,true);
+        pea.cooldown = .95;
+      } else if (actualDistance < 165 && distance > 1 && actualDistance > 23) {
+        const x = pea.x+dx/distance*85*dt, y = pea.y+dy/distance*85*dt;
+        if (canMove(x,pea.y)) pea.x=x;
+        if (canMove(pea.x,y)) pea.y=y;
+      }
+      if (!bloo.hp) return;
+      continue;
+    }
     if (pea.cookie) {
       if (!pea.cooldown && (pea.secondChunk || actualDistance < 250)) {
         const speed = 155/Math.max(distance,1);
@@ -1663,7 +1769,14 @@ function drawEnemies() {
   }
   for (const pea of enemies) {
     if (pea.area !== area || !pea.hp) continue;
-    if (pea.cookie) {
+    if (pea.bean) {
+      const {x,y}=pea;
+      oval('#542437',x,y+9,10,4);
+      oval('#632238',x,y,11,13);oval(pea.flash?'#ffb085':'#b64149',x-1,y-2,9,10);
+      box('#ffe5a3',x-5,y-4,3,3);box('#ffe5a3',x+1,y-4,3,3);
+      box('#542d39',x+8,y-13,6,19);box('#c7864b',x+9,y-12,4,13);
+      for(const dy of [-12,-8,-4])box('#efc181',x+13,y+dy,3,2);
+    } else if (pea.cookie) {
       const {x,y} = pea;
       oval('#382334',x,y+13,19,6);
       oval('#713c2d',x,y,19,18);
@@ -1879,7 +1992,52 @@ function drawMuffinRoom() {
   ctx.fillStyle = '#ffe5a8';
   ctx.fillText('MEGA MUFFIN · '+Math.ceil(muffin.hp)+' / '+muffinMaxHP,162,14);
 }
+function drawPantry() {
+  box('#382055',0,0,480,270);
+  for(let y=0;y<270;y+=26) for(let x=0;x<480;x+=32)
+    box((x/32+y/26)%2?'#764578':'#593b72',x,y,31,25);
+  for(const {x,y,w,h} of pantryWalls){
+    box('#2c193a',x,y,w,h); box('#a46365',x+2,y,w-4,h);
+    for(let dy=4;dy<h-3;dy+=13)box('#f6a561',x+2,y+dy,w-4,2);
+  }
+  box('#321a3c',419,16,50,18);
+  box('#321a3c',9,247,49,23);
+  ctx.fillStyle='#ffdf9a';ctx.font='bold 8px monospace';
+  ctx.fillText('TITAN',427,28);ctx.fillText('↓ KÖKET',13,262);
+}
+function drawTitan() {
+  box('#301c4c',0,0,480,270);
+  for(let y=24;y<270;y+=27) for(let x=0;x<480;x+=32)
+    box((x/32+(y-24)/27)%2?'#784777':'#503366',x,y,31,26);
+  for(const x of [9,450]) {
+    box('#9f5c59',x,25,20,191); box('#e29768',x+2,25,5,191);
+    for(let y=31;y<220;y+=29)box('#e8aa6d',x,y,20,3);
+  }
+  if(titan.hp){
+    const {x,y}=titan;
+    oval('#661f38',x,y,48,39);oval('#ec9a42',x,y,43,34);
+    ctx.lineCap='round';
+    for(const p of titanTips()){
+      ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(p.x+12,y-22,p.x,p.y);
+      ctx.strokeStyle='#8d382f';ctx.lineWidth=13;ctx.stroke();
+      ctx.strokeStyle=titan.warning&&titan.attack%2?'#fff1a7':'#ffbd53';ctx.lineWidth=8;ctx.stroke();
+    }
+    for(let i=0;i<7;i++){
+      ctx.beginPath();ctx.moveTo(x-35,y-21+i*8);ctx.bezierCurveTo(x-14,y-36+i*8,x+13,y+i*8,x+37,y-24+i*8);
+      ctx.strokeStyle=i%2?'#ffe18b':'#d96038';ctx.lineWidth=5;ctx.stroke();
+    }
+    for(const dx of [-26,0,26]) {oval('#672a35',x+dx,y-34,11,10);box('#ca7250',x+dx-5,y-39,4,3);}
+    for(const dx of [-15,15]){box('#452139',x+dx-7,y-6,14,11);box('#fff08b',x+dx-4,y-3,8,5);}
+    if(titan.stun) {ctx.fillStyle='#ffec90';ctx.fillText('STUN',x-14,y-52);}
+    for(const ball of titan.balls){oval('#5c2035',ball.x,ball.y,21,21);oval('#ab513d',ball.x,ball.y,17,17);box('#e99362',ball.x-9,ball.y-11,7,5);}
+  }
+  drawEnemies();drawBloo();
+  box('#29172e',105,3,270,23);box('#ff7770',112,19,256*titan.hp/titanMaxHP,4);
+  ctx.fillStyle='#ffdf9a';ctx.font='bold 10px monospace';ctx.fillText('SPAGHETTI TITAN · '+Math.ceil(titan.hp)+' / 5000',132,14);
+  ctx.fillText(titan.hp?'−1 HP var 0,5 s':'↓ PANTRY',203,260);
+}
 function draw() {
+  if (area === 'titan') {drawTitan();return;}
   if (area === 'muffin') {
     drawMuffinRoom();
     return;
@@ -1888,14 +2046,15 @@ function draw() {
     drawOnionRoom();
     return;
   }
-  if (area === 'fridge' || area === 'oven') {
+  if (area === 'fridge' || area === 'oven' || area === 'pantry') {
     const camera = cameraPosition();
     ctx.save();
     ctx.translate(-camera.x,-camera.y);
     ctx.save();
     const scale = areaScale();
     ctx.scale(scale,scale);
-    if (area === 'oven') drawOven();
+    if (area === 'pantry') drawPantry();
+    else if (area === 'oven') drawOven();
     else drawFridge();
     ctx.restore();
     drawEnemies();
@@ -1910,6 +2069,8 @@ function draw() {
     ctx.save();
     ctx.scale(floorScale,floorScale);
     drawFloor();
+    box('#472c53',444,252,34,18);
+    ctx.font='bold 7px monospace';ctx.fillStyle='#ffdf9a';ctx.fillText('PANTRY',447,262);
     ctx.restore();
     drawShopkeeper();
     drawEnemies();
