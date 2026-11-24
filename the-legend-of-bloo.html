@@ -382,7 +382,7 @@ function openChest() {
   }
   if (item?.slot === 'potion') storedPotions.push(chest.item);
   else if (item) owned.push(chest.item);
-  const reward = chest.seeds + (duplicate ? catalog[chest.item].cost : 0);
+  const reward = Math.ceil((chest.seeds + (duplicate ? catalog[chest.item].cost : 0)) / 2);
   seeds += reward;
   openedChests.add(chest.id);
   saveSeeds();
