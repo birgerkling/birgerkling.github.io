@@ -757,7 +757,7 @@ function damageEnemy(pea,damage) {
   pea.hp = Math.max(0,pea.hp-damage);
   pea.flash = .18;
   if (pea.hp) return 0;
-  pea.respawn = 10;
+  pea.respawn = pea.bean ? 25 : 10;
   return 1+Math.floor(Math.random()*5);
 }
 function awardSeeds(reward) {
