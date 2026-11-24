@@ -115,7 +115,8 @@ const chestButton = document.querySelector('#chest-open');
 const pantryScale = 3;
 const pantryLoot = [[93,221],[210,168],[128,55],[332,65],[415,213]];
 const pantryWalls = [{x:153,y:18,w:16,h:111},{x:153,y:185,w:16,h:85},{x:278,y:74,w:17,h:149},{x:370,y:18,w:16,h:139}];
-const titanMaxHP = 5000;
+const titanMaxHP = 3000;
+const titanDrainInterval = 4;
 let titan = null;
 const chests = [
   ...pantryLoot.map(([x,y],i)=>({id:'pantry-'+i,area:'pantry',x:x*3,y:y*3,seeds:35+i*10,item:['potion','speedPotion','potion','speedPotion','potion'][i]})),
@@ -514,7 +515,7 @@ function loadGame(id) {
     enemies = enemies.map(enemy => ({...enemy}));
     if (!enemies.some(enemy => enemy.cookie)) enemies.push(...newEnemies.filter(enemy => enemy.cookie));
     onion = onion && {...onion};
-    titan = world.titan ? {...world.titan,balls:world.titan.balls.map(ball=>({...ball}))} : null;
+    titan = world.titan ? {...world.titan,hp:Math.min(world.titan.hp,titanMaxHP),balls:world.titan.balls.map(ball=>({...ball}))} : null;
     if (!enemies.some(enemy=>enemy.bean)) enemies.push(...newEnemies.filter(enemy=>enemy.bean));
     muffin = world.muffin ? {...world.muffin,sprinkles:world.muffin.sprinkles.map(drop => ({...drop}))} : null;
     climb = climb && {...climb};
@@ -1366,8 +1367,8 @@ function damageTitan(damage,whip) {
 function updateTitan(dt) {
   if(!titan?.hp) return;
   titan.drain+=dt;
-  if(titan.drain>=.5){
-    titan.drain-=.5;
+  if(titan.drain>=titanDrainInterval-1e-9){
+    titan.drain=Math.max(0,titan.drain-titanDrainInterval);
     bloo.hp=Math.max(0,bloo.hp-1);
     bloo.sinceHit=0;
     showHealth();
@@ -1401,10 +1402,11 @@ function updateTitan(dt) {
   }
   const dx=bloo.x-titan.x,dy=bloo.y-titan.y;
   titan.angle=Math.atan2(dy,dx);
-  if(Math.hypot(dx,dy)>58){
-    titan.x=Math.max(53,Math.min(427,titan.x+32*dt*Math.cos(titan.angle)));
-    titan.y=Math.max(57,Math.min(202,titan.y+32*dt*Math.sin(titan.angle)));
-  }
+  // Circle Bloo at close range while keeping the next attack aimed at him.
+  const distance = Math.hypot(dx,dy);
+  const moveAngle = titan.angle + (distance > 58 ? 0 : Math.PI*.6);
+  titan.x=Math.max(53,Math.min(427,titan.x+32*dt*Math.cos(moveAngle)));
+  titan.y=Math.max(57,Math.min(202,titan.y+32*dt*Math.sin(moveAngle)));
   titan.clock-=dt;
   if(titan.clock<=0)titan.warning=.65;
 }
@@ -2033,8 +2035,8 @@ function drawTitan() {
   }
   drawEnemies();drawBloo();
   box('#29172e',105,3,270,23);box('#ff7770',112,19,256*titan.hp/titanMaxHP,4);
-  ctx.fillStyle='#ffdf9a';ctx.font='bold 10px monospace';ctx.fillText('SPAGHETTI TITAN · '+Math.ceil(titan.hp)+' / 5000',132,14);
-  ctx.fillText(titan.hp?'−1 HP var 0,5 s':'↓ PANTRY',203,260);
+  ctx.fillStyle='#ffdf9a';ctx.font='bold 10px monospace';ctx.fillText('SPAGHETTI TITAN · '+Math.ceil(titan.hp)+' / '+titanMaxHP,132,14);
+  ctx.fillText(titan.hp?'−1 HP var '+titanDrainInterval+' s':'↓ PANTRY',203,260);
 }
 function draw() {
   if (area === 'titan') {drawTitan();return;}
