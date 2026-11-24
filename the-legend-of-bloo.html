@@ -101,7 +101,7 @@ const ovenScale = 4;
 const ovenDoor = {x:341,y:81};
 const ovenExitX = 240;
 const muffinDoorX = 54;
-const muffinMaxHP = 1000;
+const muffinMaxHP = 1500;
 const muffinEyes = [{x:218,y:107},{x:262,y:107}];
 const sprinkleColors = ['#fa75ad','#75c5fa','#f9cc59','#b388f4'];
 let muffin = null;
@@ -517,7 +517,12 @@ function loadGame(id) {
     onion = onion && {...onion};
     titan = world.titan ? {...world.titan,hp:Math.min(world.titan.hp,titanMaxHP),balls:world.titan.balls.map(ball=>({...ball}))} : null;
     if (!enemies.some(enemy=>enemy.bean)) enemies.push(...newEnemies.filter(enemy=>enemy.bean));
-    muffin = world.muffin ? {...world.muffin,sprinkles:world.muffin.sprinkles.map(drop => ({...drop}))} : null;
+    muffin = world.muffin ? {
+      ...world.muffin,
+      maxHP:muffinMaxHP,
+      hp:world.muffin.hp*muffinMaxHP/(world.muffin.maxHP ?? 1000),
+      sprinkles:world.muffin.sprinkles.map(drop => ({...drop}))
+    } : null;
     climb = climb && {...climb};
     showHealth();
     say(bloo.hp ? 'Spel ' + id + ' fortsätter' : 'Bloo föll! Tryck på Börja om.');
@@ -1066,7 +1071,7 @@ function update(dt) {
       bloo.y <= 31*ovenScale) {
     area = 'muffin';
     Object.assign(bloo,{x:240,y:224});
-    muffin ??= {hp:muffinMaxHP,phase:'rest',time:1.4,next:'sprinkle',angle:Math.PI/2,contact:0,sprinkles:[]};
+    muffin ??= {hp:muffinMaxHP,maxHP:muffinMaxHP,phase:'rest',time:1.4,next:'sprinkle',angle:Math.PI/2,contact:0,sprinkles:[]};
     shots = [];
     arrows = [];
     say('MEGA MUFFIN!');
@@ -1303,7 +1308,7 @@ function updateMuffin(dt) {
       muffin.contact += dt;
       if (muffin.contact >= 1) {
         muffin.contact -= 1;
-        hurt('Chokladstrålen träffade!',10,muffin,{x:240,y:122});
+        hurt('Chokladstrålen träffade!',15,muffin,{x:240,y:122});
       }
     }
   }
@@ -1325,7 +1330,7 @@ function updateMuffin(dt) {
     case 'sprinkle':
       for (const drop of muffin.sprinkles) {
         if (!bloo.hp) break;
-        if (Math.hypot(bloo.x-drop.x,bloo.y-drop.y) <= 15) hurt('Strösslet träffade!',20,muffin,{x:240,y:90});
+        if (Math.hypot(bloo.x-drop.x,bloo.y-drop.y) <= 15) hurt('Strösslet träffade!',30,muffin,{x:240,y:90});
       }
       muffin.phase = 'crumbs';
       muffin.time = .22;
