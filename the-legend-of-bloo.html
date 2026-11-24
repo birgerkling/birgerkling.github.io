@@ -115,7 +115,8 @@ const chestButton = document.querySelector('#chest-open');
 const pantryScale = 3;
 const pantryLoot = [[93,221],[210,168],[128,55],[332,65],[415,213]];
 const pantryWalls = [{x:153,y:18,w:16,h:111},{x:153,y:185,w:16,h:85},{x:278,y:74,w:17,h:149},{x:370,y:18,w:16,h:139}];
-const titanMaxHP = 3000;
+const titanMaxHP = 2500;
+const titanVolleyInterval = .3;
 const titanDrainInterval = 4;
 let titan = null;
 const chests = [
@@ -1366,8 +1367,17 @@ function titanTips() {
 }
 function damageTitan(damage,whip) {
   titan.hp=Math.max(0,titan.hp-damage*(whip?2:.6));
-  if(whip) titan.stun=2;
+  if(whip && !titan.stun) {
+    titan.stun=3;
+    titan.warning=0;
+    titan.volleyLeft=0;
+    titan.clock=1.15;
+  }
   if(!titan.hp) { pastaDefeated=true; titan.balls=[]; saveGame(); say('Spaghetti Titan är besegrad!'); }
+}
+function launchTitanMeatball(offset) {
+  const angle=titan.angle+offset;
+  titan.balls.push({x:titan.x,y:titan.y,vx:142*Math.cos(angle),vy:142*Math.sin(angle)});
 }
 function updateTitan(dt) {
   if(!titan?.hp) return;
@@ -1389,20 +1399,27 @@ function updateTitan(dt) {
   });
   titan.stun=Math.max(0,titan.stun-dt);
   if(titan.stun || !bloo.hp) return;
+  if(titan.volleyLeft>0){
+    titan.clock-=dt;
+    if(titan.clock<=1e-9){
+      launchTitanMeatball(titan.volleyLeft===2 ? 0 : .25);
+      titan.volleyLeft--;
+      titan.clock+=titan.volleyLeft ? titanVolleyInterval : 1.15;
+    }
+    return;
+  }
   if(titan.warning>0){
     titan.warning=Math.max(0,titan.warning-dt);
     if(titan.warning) return;
     if(titan.attack%2===0){
-      for(const offset of [-.25,0,.25]){
-        const angle=titan.angle+offset;
-        titan.balls.push({x:titan.x,y:titan.y,vx:142*Math.cos(angle),vy:142*Math.sin(angle)});
-      }
+      launchTitanMeatball(-.25);
+      titan.volleyLeft=2;
     } else if(titanTips().some(p=>Math.hypot(p.x-bloo.x,p.y-bloo.y)<28) ||
         Math.hypot(titan.x+Math.cos(titan.angle)*50-bloo.x,titan.y+Math.sin(titan.angle)*50-bloo.y)<33){
       hurt('Pastapiska!',20,titan,titan,true);
     }
     titan.attack++;
-    titan.clock=1.15;
+    titan.clock=titan.volleyLeft ? titanVolleyInterval : 1.15;
     return;
   }
   const dx=bloo.x-titan.x,dy=bloo.y-titan.y;
