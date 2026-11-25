@@ -1600,13 +1600,28 @@ function drawBloo() {
 function drawWeaponSwing(id,swing) {
   const t = 1-swing/(id === 'daggers' ? .18 : .27);
   if (id === 'daggers') {
-    const hand = bloo.daggerHand;
-    ctx.translate(8*Math.sin(Math.PI*t),hand*7);
-    ctx.rotate(hand*(t-.5)*1.55);
-    box('#302746',10,-3,21,6);
-    box('#d6e2f3',17,-2,13,4);
-    box('#fff3de',29,-1,3,2);
-    box('#d89844',15,-4,3,8);
+    const side = -bloo.daggerHand;
+    const reach = 18+24*t;
+    const across = side*(16-32*t);
+    ctx.lineWidth = 2;
+    if (side < 0) {
+      ctx.strokeStyle = '#e1eaff66';
+      ctx.beginPath();
+      ctx.moveTo(18,16);
+      ctx.lineTo(42,-16);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#fff3de';
+    ctx.beginPath();
+    ctx.moveTo(18,side*16);
+    ctx.lineTo(reach,across);
+    ctx.stroke();
+    ctx.translate(reach,across);
+    ctx.rotate(Math.atan2(-side*32,24));
+    box('#302746',-15,-3,17,6);
+    box('#d6e2f3',-10,-2,11,4);
+    box('#fff3de',0,-1,3,2);
+    box('#d89844',-12,-4,3,8);
     return;
   }
   const heavy = id === 'axe' || id === 'morning';
