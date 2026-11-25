@@ -77,7 +77,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
   <h2 id="shop-title">🫐 Blåbärsbutiken</h2>
   <p id="shop-message" aria-live="polite">Hej Bloo! Vad vill du köpa?</p>
   <div class="shop-actions">
-    <div class="shop-stock"><button data-buy="bow">Bow · 12 Seeds<small>6 skada per pil · 1 sekund mellan skotten</small></button><button data-buy="steel">Steel Sword · 16 Seeds<small>12 skada</small></button><button data-buy="axe">Battle Axe · 30 Seeds<small>25 skada · Efter Onion Lord</small></button><button data-buy="morning">Morning Star · 45 Seeds<small>30 skada · Efter Mega Muffin</small></button><button data-buy="daggers">Twin Daggers · 60 Seeds<small>8 × 2 skada · Efter pastabossen</small></button><button data-buy="iron">Iron Shield · 14 Seeds<small>80 % skydd</small></button><button data-buy="tower">Tower Shield · 28 Seeds<small>80 % skydd · Efter Onion Lord</small></button><button data-buy="spiked">Spiked Shield · 45 Seeds<small>70 % skydd · 30 % tillbaka till angriparen · Efter Mega Muffin</small></button><button data-buy="platinum">Platinum Shield · 65 Seeds<small>100 % skydd · Efter pastabossen</small></button><button data-buy="leatherUpper">Läderjacka · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="leatherLower">Läderbyxor · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="chainUpper">Ringbrynje · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="chainLower">Ringbrynjebyxor · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="ironUpper">Järnplåt · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="ironLower">Järnbyxor · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="potion">Healing Potion · 5 Seeds<small>Återställer upp till 30 HP</small></button><button data-buy="speedPotion">Speed Potion · 7 Seeds<small>+50 % fart i 8 sekunder</small></button></div>
+    <div class="shop-stock"><button data-buy="bow">Bow · 12 Seeds<small>6 skada per pil · 1 sekund mellan skotten</small></button><button data-buy="steel">Steel Sword · 16 Seeds<small>12 skada</small></button><button data-buy="axe">Battle Axe · 30 Seeds<small>25 skada · Efter Onion Lord</small></button><button data-buy="morning">Morning Star · 45 Seeds<small>30 skada · Efter Mega Muffin</small></button><button data-buy="daggers">Twin Daggers · 60 Seeds<small>8 × 2 skada · Efter pastabossen</small></button><button data-buy="iron">Iron Shield · 14 Seeds<small>80 % skydd</small></button><button data-buy="tower">Tower Shield · 28 Seeds<small>80 % skydd · Efter Onion Lord</small></button><button data-buy="spiked">Spiked Shield · 45 Seeds<small>70 % skydd · 30 % tillbaka till angriparen · Efter Mega Muffin</small></button><button data-buy="platinum">Platinum Shield · 65 Seeds<small>100 % skydd · Efter pastabossen</small></button><button data-buy="leatherUpper">Läderjacka · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="leatherLower">Läderbyxor · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="chainUpper">Ringbrynje · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="chainLower">Ringbrynjebyxor · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="ironUpper">Järnplåt · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="ironLower">Järnbyxor · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="platinumUpper">Platinumrustning · 55 Seeds<small>35 % skadereducering · Efter Spaghetti Titan</small></button><button data-buy="platinumLower">Platinumbyxor · 55 Seeds<small>35 % skadereducering · Efter Spaghetti Titan</small></button><button data-buy="potion">Healing Potion · 5 Seeds<small>Återställer upp till 30 HP</small></button><button data-buy="speedPotion">Speed Potion · 7 Seeds<small>+50 % fart i 8 sekunder</small></button></div>
     <form method="dialog"><button>Stäng</button></form>
   </div>
 </dialog>
@@ -126,8 +126,8 @@ const chests = [
   {id:'onion-chain-lower',area:'boss',x:315,y:57,seeds:0,item:'chainLower',golden:true},
   {id:'muffin-iron-upper',area:'muffin',x:310,y:53,seeds:0,item:'ironUpper',afterMuffin:true},
   {id:'muffin-iron-lower',area:'muffin',x:365,y:53,seeds:0,item:'ironLower',afterMuffin:true},
-  {id:'pasta-platinum-upper',area:'titan',x:214,y:61,seeds:0,item:'platinumUpper',afterPasta:true},
-  {id:'pasta-platinum-lower',area:'titan',x:266,y:61,seeds:0,item:'platinumLower',afterPasta:true},
+  {id:'pasta-platinum-upper',area:'titan',x:214,y:61,seeds:0,item:'platinumUpper',afterPasta:true,duplicateSeeds:0},
+  {id:'pasta-platinum-lower',area:'titan',x:266,y:61,seeds:0,item:'platinumLower',afterPasta:true,duplicateSeeds:0},
   {id:'muffin-spiked-shield',area:'muffin',x:180,y:54,seeds:0,item:'spiked',afterMuffin:true},
   {id:'muffin-morning-star',area:'muffin',x:240,y:49,seeds:0,item:'morning',afterMuffin:true},
   {id:'oven-entry',area:'oven',x:249*ovenScale,y:151*ovenScale,seeds:13,item:'potion'},
@@ -149,8 +149,8 @@ const catalog = {
   chainLower: {"name":"Ringbrynjebyxor","slot":"lower","cost":24,"set":"chain","gate":"Efter Onion Lord","detail":"15 % skadereducering · +10 % fart"},
   ironUpper: {"name":"Järnplåt","slot":"upper","cost":38,"set":"iron","gate":"Efter Mega Muffin","detail":"20 % skadereducering · 25 % mot närstrid"},
   ironLower: {"name":"Järnbyxor","slot":"lower","cost":38,"set":"iron","gate":"Efter Mega Muffin","detail":"20 % skadereducering · 25 % mot närstrid"},
-  platinumUpper: {"name":"Platinumrustning","slot":"upper","cost":0,"set":"platinum","gate":"Efter pastabossen","detail":"35 % skadereducering · 10 % chans att hela 5 HP"},
-  platinumLower: {"name":"Platinumbyxor","slot":"lower","cost":0,"set":"platinum","gate":"Efter pastabossen","detail":"35 % skadereducering · 10 % chans att hela 5 HP"},
+  platinumUpper: {"name":"Platinumrustning","slot":"upper","cost":55,"set":"platinum","gate":"Efter pastabossen","detail":"35 % skadereducering · 10 % chans att hela 5 HP"},
+  platinumLower: {"name":"Platinumbyxor","slot":"lower","cost":55,"set":"platinum","gate":"Efter pastabossen","detail":"35 % skadereducering · 10 % chans att hela 5 HP"},
   onionTears: {name:'ONION Tears',slot:'gadget',cost:0,detail:'Mellanslag kastar en lök som förvirrar fiender nära nedslaget i 4 sekunder'},
   bow: {name:'Bow',slot:'gadget',cost:12,power:6,detail:'Mellanslag skjuter en pil mot musen'},
   steel: {"name":"Steel Sword","cost":16,"power":12,"delay":0.36,"gate":"","slot":"weapon","detail":"12 skada"},
@@ -383,7 +383,7 @@ function openChest() {
   }
   if (item?.slot === 'potion') storedPotions.push(chest.item);
   else if (item) owned.push(chest.item);
-  const reward = Math.ceil((chest.seeds + (duplicate ? catalog[chest.item].cost : 0)) / 2);
+  const reward = Math.ceil((chest.seeds + (duplicate ? (chest.duplicateSeeds ?? catalog[chest.item].cost) : 0)) / 2);
   seeds += reward;
   openedChests.add(chest.id);
   saveSeeds();
