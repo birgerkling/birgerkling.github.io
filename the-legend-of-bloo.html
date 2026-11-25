@@ -126,8 +126,8 @@ const chests = [
   {id:'onion-chain-lower',area:'boss',x:315,y:57,seeds:0,item:'chainLower',golden:true},
   {id:'muffin-iron-upper',area:'muffin',x:310,y:53,seeds:0,item:'ironUpper',afterMuffin:true},
   {id:'muffin-iron-lower',area:'muffin',x:365,y:53,seeds:0,item:'ironLower',afterMuffin:true},
-  {id:'pasta-platinum-upper',area:'oven',x:53*ovenScale,y:41*ovenScale,seeds:0,item:'platinumUpper',afterPasta:true},
-  {id:'pasta-platinum-lower',area:'oven',x:76*ovenScale,y:41*ovenScale,seeds:0,item:'platinumLower',afterPasta:true},
+  {id:'pasta-platinum-upper',area:'titan',x:214,y:61,seeds:0,item:'platinumUpper',afterPasta:true},
+  {id:'pasta-platinum-lower',area:'titan',x:266,y:61,seeds:0,item:'platinumLower',afterPasta:true},
   {id:'muffin-spiked-shield',area:'muffin',x:180,y:54,seeds:0,item:'spiked',afterMuffin:true},
   {id:'muffin-morning-star',area:'muffin',x:240,y:49,seeds:0,item:'morning',afterMuffin:true},
   {id:'oven-entry',area:'oven',x:249*ovenScale,y:151*ovenScale,seeds:13,item:'potion'},
@@ -249,7 +249,7 @@ const isPotion = id => Object.hasOwn(catalog,id) && catalog[id].slot === 'potion
 const restorePotion = id => id === true ? 'potion' : isPotion(id) ? id : false;
 function restoreProgress(saved) {
   muffinDefeated = !!(saved?.muffinDefeated || saved?.world?.muffin?.hp === 0);
-  pastaDefeated = !!saved?.pastaDefeated;
+  pastaDefeated = !!(saved?.pastaDefeated || saved?.world?.titan?.hp === 0);
   ovenUnlocked = !!(saved?.ovenUnlocked || saved?.world?.onion?.hp === 0 || saved?.openedChests?.includes('onion-golden'));
   seeds = 0;
   owned = [];
@@ -1379,7 +1379,7 @@ function damageTitan(damage,whip) {
     titan.volleyLeft=0;
     titan.clock=1.15;
   }
-  if(!titan.hp) { pastaDefeated=true; titan.balls=[]; saveGame(); say('Spaghetti Titan är besegrad!'); }
+  if(!titan.hp) { pastaDefeated=true; titan.balls=[]; saveGame(); say('Spaghetti Titan är besegrad! Platinumkistorna finns längst upp i rummet.'); }
 }
 function launchTitanMeatball(offset) {
   const angle=titan.angle+offset;
