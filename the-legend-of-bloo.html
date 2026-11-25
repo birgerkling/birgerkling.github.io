@@ -115,6 +115,7 @@ const chestButton = document.querySelector('#chest-open');
 const pantryScale = 3;
 const pantryLoot = [[93,221],[210,168],[128,55],[332,65],[415,213]];
 const pantryWalls = [{x:153,y:18,w:16,h:111},{x:153,y:185,w:16,h:85},{x:278,y:74,w:17,h:149},{x:370,y:18,w:16,h:139}];
+const beanMaxHP = 80;
 const titanMaxHP = 2500;
 const titanVolleyInterval = .3;
 const titanDrainInterval = 4;
@@ -297,7 +298,7 @@ function reset() {
   onionThrow = null;
   tearCloud = null;
   tearsCooldown = 0;
-  enemies = enemySpawns.map((spawn,index) => ({...spawn,maxHP:spawn.bean ? 150 : spawn.cookie ? 100 : spawn.egg ? 50 : 20,hp:spawn.bean ? 150 : spawn.cookie ? 100 : spawn.egg ? 50 : 20,homeX:spawn.x,homeY:spawn.y,cooldown:.6+index%3*.35,flash:0}));
+  enemies = enemySpawns.map((spawn,index) => ({...spawn,maxHP:spawn.bean ? beanMaxHP : spawn.cookie ? 100 : spawn.egg ? 50 : 20,hp:spawn.bean ? beanMaxHP : spawn.cookie ? 100 : spawn.egg ? 50 : 20,homeX:spawn.x,homeY:spawn.y,cooldown:.6+index%3*.35,flash:0}));
   bloo.hp = maxHP;
   bloo.speedBoost = 0;
   bloo.sinceHit = 0;
@@ -517,6 +518,11 @@ function loadGame(id) {
     if (!enemies.some(enemy => enemy.cookie)) enemies.push(...newEnemies.filter(enemy => enemy.cookie));
     onion = onion && {...onion};
     titan = world.titan ? {...world.titan,hp:Math.min(world.titan.hp,titanMaxHP),balls:world.titan.balls.map(ball=>({...ball}))} : null;
+    for (const enemy of enemies) {
+      if (!enemy.bean) continue;
+      enemy.hp = Math.min(beanMaxHP, enemy.hp * beanMaxHP / enemy.maxHP);
+      enemy.maxHP = beanMaxHP;
+    }
     if (!enemies.some(enemy=>enemy.bean)) enemies.push(...newEnemies.filter(enemy=>enemy.bean));
     muffin = world.muffin ? {
       ...world.muffin,
