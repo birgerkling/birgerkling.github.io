@@ -8,6 +8,7 @@
 .health{display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:800}.health progress{flex:1;height:18px;min-width:40px;accent-color:#ee646b}.health output{white-space:nowrap;color:#bce889;font-size:14px}.health span{min-width:100px;text-align:right;font-variant-numeric:tabular-nums}
 dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;border-radius:12px;background:#2a2044;color:#fff0cd}dialog::backdrop{background:#150d24b0}dialog h2{margin:0 0 8px}dialog p{margin:8px 0 14px}.shop-actions{display:flex;gap:8px;flex-wrap:wrap}button:disabled{opacity:.5;cursor:default}[hidden]{display:none!important}
 #berry-dialog{max-height:85vh;overflow:auto}#berry-quests{display:grid;gap:8px;margin-bottom:12px}#berry-quests section{border:1px solid #795c95;padding:8px}#berry-quests p{margin:4px 0 7px}
+#bow-fire{touch-action:none}
 #inventory-open{grid-column:1/-1;background:#554078} .actions{display:grid;grid-template-columns:repeat(2,auto)}
 #inventory{width:min(590px,calc(100% - 24px));max-height:calc(100dvh - 24px);border-radius:4px;box-shadow:inset 0 0 0 3px #3e2b56}
 .inventory-layout{display:grid;grid-template-columns:3fr 1.5fr 1.5fr;gap:10px;margin:14px 0}
@@ -211,6 +212,8 @@ const potionSlots = document.querySelectorAll('[data-drink]');
 const storePotionButtons = document.querySelectorAll('[data-store-potion]');
 const progressKey = 'legend-of-bloo.progress';
 const keys = new Set();
+let heldCanvasAttack = null;
+let heldGadget = null;
 const pointers = new Map();
 const valid = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyE','KeyF']);
 const townScale = 2;
@@ -938,12 +941,12 @@ function updateBowButton() {
   bowButton.hidden = !id;
   if (id) bowButton.textContent = catalog[id].name + ' · Mellanslag';
 }
-function useGadget(pointer = swordPointer) {
+function useGadget(pointer = swordPointer, repeating = false) {
   const id = equipped.gadget;
   if (!id || !bloo.hp || climb || inventory.open || shop.open || down('KeyF')) return;
   if (id === 'onionTears') {
     if (tearsCooldown > 0) {
-      say('ONION Tears laddar: ' + Math.ceil(tearsCooldown) + ' s');
+      if (!repeating) say('ONION Tears laddar: ' + Math.ceil(tearsCooldown) + ' s');
       return;
     }
     const aim = swordDirection(pointer);
@@ -962,9 +965,17 @@ function useGadget(pointer = swordPointer) {
   say(gadget.name+'!');
 }
 bowButton.addEventListener('pointerdown', event => {
+  if (event.button !== 0 || heldGadget) return;
   event.preventDefault();
-  useGadget(event.pointerType === 'touch' ? null : swordPointer);
+  heldGadget = {id:event.pointerId,touch:event.pointerType === 'touch'};
+  bowButton.setPointerCapture(event.pointerId);
+  useGadget(heldGadget.touch ? null : swordPointer);
 });
+for (const type of ['pointerup','pointercancel','lostpointercapture']) {
+  bowButton.addEventListener(type,event => {
+    if (heldGadget?.id === event.pointerId) heldGadget = null;
+  });
+}
 bowButton.addEventListener('click', event => {
   if (!event.detail) useGadget();
 });
@@ -1079,6 +1090,7 @@ document.addEventListener('keydown', event => {
   if (shop.open || inventory.open) return;
   if (event.code === 'Space') {
     event.preventDefault();
+    keys.add('Space');
     if (!event.repeat) useGadget();
     return;
   }
@@ -1106,7 +1118,22 @@ canvas.addEventListener('pointermove', event => {
   if (event.pointerType === 'mouse' || event.pointerType === 'pen') swordPointer = event;
 });
 canvas.addEventListener('pointerleave', () => { swordPointer = null; });
-canvas.addEventListener('click', event => attack(event));
+canvas.addEventListener('pointerdown', event => {
+  if (event.pointerType === 'touch' || event.button !== 0 || heldCanvasAttack !== null) return;
+  if (berryDialog.open || prologue.open || accounts.open || shop.open || inventory.open) return;
+  heldCanvasAttack = event.pointerId;
+  swordPointer = event;
+  canvas.setPointerCapture(event.pointerId);
+  attack(event);
+});
+for (const type of ['pointerup','pointercancel','lostpointercapture']) {
+  canvas.addEventListener(type,event => {
+    if (heldCanvasAttack === event.pointerId) heldCanvasAttack = null;
+  });
+}
+canvas.addEventListener('click', event => {
+  if (event.pointerType === 'touch' || !event.detail) attack(event);
+});
 
 document.addEventListener('keyup', event => keys.delete(event.code));
 const joystick = document.querySelector('#joystick');
@@ -1184,6 +1211,8 @@ for (const type of ['pointercancel','lostpointercapture']) {
   });
 }
 function clearInputs() {
+  heldCanvasAttack = null;
+  heldGadget = null;
   resetAttackStick();
   resetStick();
   keys.clear();
@@ -1276,9 +1305,11 @@ function update(dt) {
   }
   bloo.flash = Math.max(0,bloo.flash-dt);
   bloo.guard = down('KeyF') && !bloo.swing;
-  if (attackDirection && !bloo.swing) {
+  if (attackPointer !== null && !bloo.swing) {
     attack(null,attackDirection);
     if (bloo.swing) swungWhileHeld = true;
+  } else if (heldCanvasAttack !== null || down('KeyE')) {
+    attack(heldCanvasAttack !== null || keys.has('KeyE') ? swordPointer : null);
   }
   const dx = Number(down('KeyD','ArrowRight')) - Number(down('KeyA','ArrowLeft')) + stick.x;
   const dy = Number(down('KeyS','ArrowDown')) - Number(down('KeyW','ArrowUp')) + stick.y;
@@ -1412,6 +1443,7 @@ function update(dt) {
   } else bloo.step = 0;
 
   bowCooldown = Math.max(0,bowCooldown-dt);
+  if (heldGadget || down('Space')) useGadget(heldGadget?.touch ? null : swordPointer,true);
   arrows = arrows.filter(arrow => {
     arrow.x += arrow.vx*dt;
     arrow.y += arrow.vy*dt;
