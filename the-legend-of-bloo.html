@@ -38,7 +38,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 <header><h1>The Legend of Bloo</h1><span id="status" aria-live="polite">Redo!</span></header>
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
-<output id="chest-rewards" role="status" style="display:block;color:#ffe1a1;font-weight:bold"></output><footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för vapnet · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra. R öppnar butiken · T öppnar kistor när du står nära.</span><button id="chest-open" hidden>Öppna kista · T</button><button id="shop-open" hidden>Butik · R</button><button id="replay-prologue" aria-haspopup="dialog">Se loren igen</button><button id="accounts-open" aria-haspopup="dialog">Accounts</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
+<output id="chest-rewards" role="status" style="display:block;color:#ffe1a1;font-weight:bold"></output><footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för vapnet · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra. R öppnar butiken · T öppnar kistor när du står nära.</span><button id="chest-open" hidden>Öppna kista · T</button><button id="shop-open" hidden>Butik · R</button><button id="berry-talk" hidden>Prata · R</button><button id="replay-prologue" aria-haspopup="dialog">Se loren igen</button><button id="accounts-open" aria-haspopup="dialog">Accounts</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
 <div class="controls"><div id="joystick" role="group" aria-label="Joystick. Dra för att styra Bloo."><span aria-hidden="true"></span></div><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ Tree Sword</button><div id="attack-stick" role="group" aria-label="Svärd. Håll åt ett håll för att slå upprepade gånger."><span aria-hidden="true">⚔</span></div><button data-key="KeyF">⬟ Wooden Shield</button><button id="bow-fire" hidden>Bow · Mellanslag</button></div></div>
 <dialog id="prologue" lang="en" aria-label="Prologue">
   <img id="story-art" src="./bloo-prologue/2.jpg" alt="">
@@ -73,11 +73,12 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
   </div>
   <form method="dialog"><button>Stäng</button></form>
 </dialog>
+<dialog id="berry-dialog" aria-labelledby="berry-title"><h2 id="berry-title">Berryngton Bluu</h2><p>God dag, Bloo! Jag håller reda på byns uppdrag. Titta förbi igen så berättar jag när jag har ett åt dig.</p><form method="dialog"><button>Stäng</button></form></dialog>
 <dialog id="shop" aria-labelledby="shop-title">
   <h2 id="shop-title">🫐 Blåbärsbutiken</h2>
   <p id="shop-message" aria-live="polite">Hej Bloo! Vad vill du köpa?</p>
   <div class="shop-actions">
-    <div class="shop-stock"><button data-buy="bow">Bow · 12 Seeds<small>6 skada per pil · 1 sekund mellan skotten</small></button><button data-buy="steel">Steel Sword · 16 Seeds<small>12 skada</small></button><button data-buy="axe">Battle Axe · 30 Seeds<small>25 skada · Efter Onion Lord</small></button><button data-buy="morning">Morning Star · 45 Seeds<small>30 skada · Efter Mega Muffin</small></button><button data-buy="daggers">Twin Daggers · 60 Seeds<small>Två hugg med 8 skada vardera · Efter pastabossen</small></button><button data-buy="iron">Iron Shield · 14 Seeds<small>80 % skydd</small></button><button data-buy="tower">Tower Shield · 28 Seeds<small>80 % skydd · Efter Onion Lord</small></button><button data-buy="spiked">Spiked Shield · 45 Seeds<small>70 % skydd · 30 % tillbaka till angriparen · Efter Mega Muffin</small></button><button data-buy="platinum">Platinum Shield · 65 Seeds<small>100 % skydd · Efter pastabossen</small></button><button data-buy="leatherUpper">Läderjacka · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="leatherLower">Läderbyxor · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="chainUpper">Ringbrynje · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="chainLower">Ringbrynjebyxor · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="ironUpper">Järnplåt · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="ironLower">Järnbyxor · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="platinumUpper">Platinumrustning · 55 Seeds<small>35 % skadereducering · Efter Spaghetti Titan</small></button><button data-buy="platinumLower">Platinumbyxor · 55 Seeds<small>35 % skadereducering · Efter Spaghetti Titan</small></button><button data-buy="potion">Healing Potion · 5 Seeds<small>Återställer upp till 30 HP</small></button><button data-buy="speedPotion">Speed Potion · 7 Seeds<small>+50 % fart i 8 sekunder</small></button></div>
+    <div class="shop-stock"><button data-buy="bow">Bow · 12 Seeds<small>6 skada per pil · 1 sekund mellan skotten</small></button><button data-buy="steel">Steel Sword · 16 Seeds<small>12 skada</small></button><button data-buy="axe">Battle Axe · 30 Seeds<small>25 skada · Efter Onion Lord</small></button><button data-buy="morning">Morning Star · 45 Seeds<small>30 skada · Efter Mega Muffin</small></button><button data-buy="daggers">Twin Daggers · 60 Seeds<small>Två hugg med 12 skada vardera · Efter pastabossen</small></button><button data-buy="iron">Iron Shield · 14 Seeds<small>80 % skydd</small></button><button data-buy="tower">Tower Shield · 28 Seeds<small>80 % skydd · Efter Onion Lord</small></button><button data-buy="spiked">Spiked Shield · 45 Seeds<small>70 % skydd · 30 % tillbaka till angriparen · Efter Mega Muffin</small></button><button data-buy="platinum">Platinum Shield · 65 Seeds<small>100 % skydd · Efter pastabossen</small></button><button data-buy="leatherUpper">Läderjacka · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="leatherLower">Läderbyxor · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="chainUpper">Ringbrynje · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="chainLower">Ringbrynjebyxor · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="ironUpper">Järnplåt · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="ironLower">Järnbyxor · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="platinumUpper">Platinumrustning · 55 Seeds<small>35 % skadereducering · Efter Spaghetti Titan</small></button><button data-buy="platinumLower">Platinumbyxor · 55 Seeds<small>35 % skadereducering · Efter Spaghetti Titan</small></button><button data-buy="potion">Healing Potion · 5 Seeds<small>Återställer upp till 30 HP</small></button><button data-buy="speedPotion">Speed Potion · 7 Seeds<small>+50 % fart i 8 sekunder</small></button></div>
     <form method="dialog"><button>Stäng</button></form>
   </div>
 </dialog>
@@ -156,7 +157,7 @@ const catalog = {
   steel: {"name":"Steel Sword","cost":16,"power":12,"delay":0.36,"gate":"","slot":"weapon","detail":"12 skada"},
   axe: {"name":"Battle Axe","cost":30,"power":25,"delay":0.54,"gate":"Efter Onion Lord","slot":"weapon","detail":"25 skada"},
   morning: {"name":"Morning Star","cost":45,"power":30,"delay":0.72,"gate":"Efter Mega Muffin","slot":"weapon","detail":"30 skada"},
-  daggers: {"name":"Twin Daggers","cost":60,"power":8,"delay":0.3,"gate":"Efter pastabossen","slot":"weapon","detail":"Två hugg med 8 skada vardera"},
+  daggers: {"name":"Twin Daggers","cost":60,"power":12,"delay":0.3,"gate":"Efter pastabossen","slot":"weapon","detail":"Två hugg med 12 skada vardera"},
   iron: {"name":"Iron Shield","cost":14,"block":0.8,"angle":55,"gate":"","slot":"shield","detail":"80 % skydd · 110°"},
   tower: {"name":"Tower Shield","cost":28,"block":0.8,"angle":90,"gate":"Efter Onion Lord","slot":"shield","detail":"80 % skydd · 180°"},
   spiked: {"name":"Spiked Shield","cost":45,"block":0.7,"angle":125,"gate":"Efter Mega Muffin","slot":"shield","detail":"70 % skydd · 250°"},
@@ -197,7 +198,30 @@ const townTents = [
   {x:219,y:363,w:52,h:57},{x:863,y:402,w:62,h:55},{x:408,y:329,w:52,h:53}
 ];
 const townStatue = {x:448,y:237,w:64,h:55};
-const townObstacles = [...townBuildings,...townTents,townStatue];
+const berryStand = {x:627,y:317,w:66,h:24};
+const townObstacles = [...townBuildings,...townTents,townStatue,berryStand];
+const berryDialog = document.querySelector('#berry-dialog');
+const berryTalk = document.querySelector('#berry-talk');
+function berryNearby() {
+  return area === 'counter' && !climb && bloo.hp > 0 &&
+    Math.hypot(bloo.x-660,bloo.y-317) < 54;
+}
+function talkToBerryngton() {
+  if (!berryNearby() || berryDialog.open || shop.open || inventory.open || accounts.open || prologue.open) return;
+  clearInputs();
+  berryDialog.showModal();
+}
+berryTalk.addEventListener('click',talkToBerryngton);
+berryDialog.addEventListener('close',clearInputs);
+const townWalkers = [
+  {from:[45,165],to:[390,165],speed:23,offset:70,color:'#5753b8'},
+  {from:[345,172],to:[690,172],speed:20,offset:420,color:'#7261bf'},
+  {from:[592,161],to:[912,161],speed:19,offset:160,color:'#434fa6'},
+  {from:[178,184],to:[178,455],speed:24,offset:95,color:'#6159b4'},
+  {from:[198,304],to:[804,304],speed:25,offset:580,color:'#474fa2'},
+  {from:[840,295],to:[840,480],speed:20,offset:110,color:'#7770bf'}
+];
+let townTime = 0;
 const pinata = {x:660,y:219,maxHP:50,hp:50,respawn:0};
 const enemySpawns = [
   ...pantryLoot.flatMap(([x,y])=>[[-16,0],[16,0],[0,-17]].map(([dx,dy])=>({area:'pantry',x:(x+dx)*3,y:(y+dy)*3,bean:true}))),
@@ -851,7 +875,7 @@ function strike(damage,id,daggerHand = -1) {
   if (reward) awardSeeds(reward);
 }
 document.addEventListener('keydown', event => {
-  if (prologue.open || accounts.open) return;
+  if (berryDialog.open || prologue.open || accounts.open) return;
   if (['Digit1','Digit2','Numpad1','Numpad2'].includes(event.code) && !shop.open) {
     event.preventDefault();
     if (!event.repeat) drinkPotion(Number(event.code.slice(-1))-1);
@@ -871,6 +895,11 @@ document.addEventListener('keydown', event => {
   if (event.code === 'KeyT') {
     event.preventDefault();
     if (!event.repeat) openChest();
+    return;
+  }
+  if (event.code === 'KeyR' && !event.repeat && berryNearby()) {
+    event.preventDefault();
+    talkToBerryngton();
     return;
   }
   if (event.code === 'KeyR' && !event.repeat && shopNearby()) {
@@ -1019,7 +1048,8 @@ function canMove(x,y) {
       y > o.y*scale-9 && y < (o.y+o.h)*scale+9);
 }
 function update(dt) {
-  if (prologue.open || accounts.open || shop.open || inventory.open) return;
+  if (berryDialog.open || prologue.open || accounts.open || shop.open || inventory.open) return;
+  if (area === 'counter') townTime += dt;
   if (area === 'counter' && !pinata.hp) {
     pinata.respawn -= dt;
     if (pinata.respawn <= 0) pinata.hp = pinata.maxHP;
@@ -1638,28 +1668,13 @@ function drawBloo() {
 function drawWeaponSwing(id,swing) {
   const t = 1-swing/(id === 'daggers' ? .18 : .27);
   if (id === 'daggers') {
-    const side = -bloo.daggerHand;
-    const reach = 18+24*t;
-    const across = side*(16-32*t);
-    ctx.lineWidth = 2;
-    if (side < 0) {
-      ctx.strokeStyle = '#e1eaff66';
-      ctx.beginPath();
-      ctx.moveTo(18,16);
-      ctx.lineTo(42,-16);
-      ctx.stroke();
-    }
-    ctx.strokeStyle = '#fff3de';
-    ctx.beginPath();
-    ctx.moveTo(18,side*16);
-    ctx.lineTo(reach,across);
-    ctx.stroke();
-    ctx.translate(reach,across);
-    ctx.rotate(Math.atan2(-side*32,24));
-    box('#302746',-15,-3,17,6);
-    box('#d6e2f3',-10,-2,11,4);
-    box('#fff3de',0,-1,3,2);
-    box('#d89844',-12,-4,3,8);
+    const hand = bloo.daggerHand;
+    ctx.translate(12*Math.sin(Math.PI*t),hand*8);
+    ctx.rotate(hand*(t-.5)*1.1);
+    box('#302746',10,-3,21,6);
+    box('#d6e2f3',17,-2,13,4);
+    box('#fff3de',29,-1,3,2);
+    box('#d89844',15,-4,3,8);
     return;
   }
   const heavy = id === 'axe' || id === 'morning';
@@ -2208,6 +2223,38 @@ function drawTownTent({x,y,w,h},index) {
   box('#ffc982',x+w/2-4,y+h-14,8,11);
   box('#ffe2a0',x+w/2,y-7,13,5);
 }
+function drawTownBerry(x,y,color,step=0) {
+  oval('#372746',x,y+9,11,4);
+  box('#272243',x-7,y+6+step,5,5);
+  box('#272243',x+3,y+6-step,5,5);
+  oval('#282342',x,y,10,10);
+  oval(color,x,y-1,8,8);
+  box('#b3affe',x-5,y-6,4,2);
+  box('#789752',x-2,y-12,6,4);
+  box('#252044',x-4,y,2,3);
+  box('#252044',x+3,y,2,3);
+}
+function drawTownResidents() {
+  for (const {from,to,speed,offset,color} of townWalkers) {
+    const distance = Math.hypot(to[0]-from[0],to[1]-from[1]);
+    const progress = ((townTime*speed+offset)/distance)%2;
+    const t = 1-Math.abs(1-progress);
+    drawTownBerry(Math.round(from[0]+(to[0]-from[0])*t),Math.round(from[1]+(to[1]-from[1])*t),color,Math.round(Math.sin(townTime*10)*2));
+  }
+  drawTownBerry(660,309,'#5550a1');
+  box('#382841',649,299,22,3);
+  box('#765172',653,295,14,5);
+  box('#ded0c4',653,311,6,3);
+  box('#ded0c4',661,311,6,3);
+  box('#9b6653',673,305,3,18);
+  box('#6f414e',627,317,66,24);
+  box('#d39a77',625,316,70,6);
+  box('#f4d5a6',677,314,12,5);
+  box('#372445',597,278,126,14);
+  ctx.fillStyle='#ffe5ab';ctx.font='bold 9px monospace';ctx.textAlign='center';
+  ctx.fillText((berryNearby()?'R · ':'')+'Berryngton Bluu',660,288);
+  ctx.textAlign='start';
+}
 function drawTown() {
   const camera = cameraPosition();
   ctx.save();
@@ -2272,6 +2319,7 @@ function drawTown() {
   }
   ctx.fillStyle='#ffe5a5';ctx.font='bold 9px monospace';
   ctx.fillText(hp ? 'POTATISPIÑATA · '+hp+'/'+maxHP : 'PIÑATAN KOMMER TILLBAKA',x-65,y+32);
+  drawTownResidents();
   drawEnemies();
   drawBloo();
   ctx.restore();
@@ -2280,6 +2328,7 @@ function frame(now) {
   const dt=last ? Math.min((now-last)/1000,.04) : 0;
   last=now;
   update(dt);
+  berryTalk.hidden = !berryNearby();
   chestButton.hidden = !nearbyChest();
   draw();
   if (!accounts.open && now-lastAutoSave >= 5000) {
