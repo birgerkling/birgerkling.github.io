@@ -134,11 +134,12 @@ const titanMaxHP = 2500;
 const titanVolleyInterval = .3;
 const titanDrainInterval = 4;
 let titan = null;
-const templeKeyNames = {frost:'Frost Key',lava:'Lava Key',wood:'Wood Key',steel:'Steel Key'};
-const templeKeys = new Set();
+const templeKeyNames = ['Bronze Key','Silver Key','Gold Key','Diamond Key'];
+const templeKeyColors = ['#e89354','#d9dcf2','#ffcf4a','#68e5ff'];
+let templeKeyTier = 0;
 const chests = [
-  {id:'muffin-wood-key',area:'muffin',x:295,y:96,seeds:0,key:'wood',afterMuffin:true},
-  {id:'titan-steel-key',area:'titan',x:240,y:102,seeds:0,key:'steel',afterPasta:true},
+  {id:'muffin-wood-key',area:'muffin',x:295,y:96,seeds:0,keyTier:2,afterMuffin:true},
+  {id:'titan-steel-key',area:'titan',x:240,y:102,seeds:0,keyTier:3,afterPasta:true},
   ...pantryLoot.map(([x,y],i)=>({id:'pantry-'+i,area:'pantry',x:x*3,y:y*3,seeds:35+i*10,item:['potion','speedPotion','potion','speedPotion','potion'][i]})),
   {id:'onion-chain-upper',area:'boss',x:165,y:57,seeds:0,item:'chainUpper',golden:true},
   {id:'onion-chain-lower',area:'boss',x:315,y:57,seeds:0,item:'chainLower',golden:true},
@@ -152,7 +153,7 @@ const chests = [
   {id:'oven-left',area:'oven',x:48*ovenScale,y:62*ovenScale,seeds:23,item:'speedPotion'},
   {id:'oven-middle',area:'oven',x:336*ovenScale,y:205*ovenScale,seeds:18,item:'potion'},
   {id:'oven-far',area:'oven',x:419*ovenScale,y:212*ovenScale,seeds:25,item:'steel'},
-  {id:'onion-golden',area:'boss',x:240,y:42,seeds:0,item:'onionTears',key:'lava',golden:true},
+  {id:'onion-golden',area:'boss',x:240,y:42,seeds:0,item:'onionTears',keyTier:1,golden:true},
   {id:'fridge-left',area:'fridge',x:53*fridgeScale,y:67*fridgeScale,seeds:7,item:'potion'},
   {id:'fridge-top',area:'fridge',x:250*fridgeScale,y:55*fridgeScale,seeds:8,item:'bow'},
   {id:'fridge-shelf',area:'fridge',x:350*fridgeScale,y:120*fridgeScale,seeds:10,item:'speedPotion'},
@@ -424,14 +425,16 @@ function restoreProgress(saved) {
   if (Array.isArray(saved?.openedChests)) {
     for (const chest of chests) if (saved.openedChests.includes(chest.id)) openedChests.add(chest.id);
   }
-  templeKeys.clear();
-  templeKeys.add('frost');
-  if (Array.isArray(saved?.templeKeys)) {
-    for (const key of saved.templeKeys) if (Object.hasOwn(templeKeyNames,key)) templeKeys.add(key);
+  templeKeyTier = 0;
+  if (Number.isInteger(saved?.templeKeyTier) && templeKeyNames[saved.templeKeyTier]) {
+    templeKeyTier = saved.templeKeyTier;
+  } else if (Array.isArray(saved?.templeKeys)) {
+    const legacyTiers = ['frost','lava','wood','steel'];
+    templeKeyTier = Math.max(0,...saved.templeKeys.map(key=>legacyTiers.indexOf(key)));
   } else {
-    if (ovenUnlocked || muffinDefeated || pastaDefeated || ['oven','muffin'].includes(saved?.world?.area)) templeKeys.add('lava');
-    if (muffinDefeated || pastaDefeated || ['pantry','titan'].includes(saved?.world?.area)) templeKeys.add('wood');
-    if (pastaDefeated) templeKeys.add('steel');
+    if (ovenUnlocked || muffinDefeated || pastaDefeated || ['oven','muffin'].includes(saved?.world?.area)) templeKeyTier = 1;
+    if (muffinDefeated || pastaDefeated || ['pantry','titan'].includes(saved?.world?.area)) templeKeyTier = 2;
+    if (pastaDefeated) templeKeyTier = 3;
   }
   const balance = saved?.seeds;
   if (Number.isSafeInteger(balance) && balance >= 0) seeds = balance;
@@ -566,13 +569,14 @@ function openChest() {
   else if (item) owned.push(chest.item);
   const reward = Math.ceil((chest.seeds + (duplicate ? (chest.duplicateSeeds ?? catalog[chest.item].cost) : 0)) / 2);
   seeds += reward;
-  if (chest.key) templeKeys.add(chest.key);
+  const upgradedKey = chest.keyTier > templeKeyTier;
+  if (upgradedKey) templeKeyTier = chest.keyTier;
   openedChests.add(chest.id);
   saveSeeds();
   chestButton.hidden = true;
-  const loot = [reward ? '+' + reward + ' Seeds' : '',item?.name,templeKeyNames[chest.key]].filter(Boolean);
+  const loot = [reward ? '+' + reward + ' Seeds' : '',item?.name,upgradedKey ? templeKeyNames[templeKeyTier] : ''].filter(Boolean);
   const chestRewards = document.querySelector('#chest-rewards');
-  chestRewards.textContent = 'Kista: ' + loot.join(' och ');
+  chestRewards.textContent = 'Kista: ' + (loot.join(' och ') || 'Kistan är tom');
   if (item) markRarity(chestRewards,chest.item);
   else chestRewards.style.color = '';
   clearTimeout(chestRewards.hideTimer);
@@ -742,7 +746,7 @@ let activeGame = '1';
 let lastAutoSave = 0;
 
 function saveGame() {
-  games[activeGame] = {templeKeys:[...templeKeys],starterSlingshotGranted,berryQuestStates:{...berryQuestStates},berryPeaKills,illustratedPrologueSeen,seeds,ovenUnlocked,muffinDefeated,pastaDefeated,owned:[...owned],equipped:{...equipped},potions:[...potions],
+  games[activeGame] = {templeKeyTier,starterSlingshotGranted,berryQuestStates:{...berryQuestStates},berryPeaKills,illustratedPrologueSeen,seeds,ovenUnlocked,muffinDefeated,pastaDefeated,owned:[...owned],equipped:{...equipped},potions:[...potions],
     storedPotions:[...storedPotions],openedChests:[...openedChests],
     world:{area,bloo:{...bloo,guard:false,swing:0},onion:onion && {...onion},
       titan:titan && {...titan,balls:titan.balls.map(ball=>({...ball}))},
@@ -896,7 +900,9 @@ claimSlingshot.addEventListener('click', () => {
 });
 function renderInventory() {
   cancelDiscard();
-  document.querySelector('#gear-key').textContent = '🔑 '+[...templeKeys].map(key=>templeKeyNames[key]).join(' · ');
+  const keySlot = document.querySelector('#gear-key');
+  keySlot.textContent = '⚿ '+templeKeyNames[templeKeyTier];
+  keySlot.style.color = templeKeyColors[templeKeyTier];
   claimSlingshot.hidden = owned.includes('slingshot');
   claimSlingshot.disabled = !!equipped.gadget && bagFull();
   claimSlingshot.title = claimSlingshot.disabled ? 'Frigör en plats i Items först' : '';
@@ -1466,7 +1472,7 @@ function update(dt) {
   }
   if (area === 'floor' && dy < 0 && Math.abs(bloo.x-ovenDoor.x*floorScale) < 34 &&
       bloo.y <= ovenDoor.y*floorScale+32) {
-    if (templeKeys.has('lava')) {
+    if (templeKeyTier >= 1) {
       area = 'oven';
       Object.assign(bloo,{x:ovenExitX*ovenScale,y:234*ovenScale});
       shots = [];
@@ -1474,7 +1480,7 @@ function update(dt) {
       say('Inne i OVEN. Se upp för Cookies!');
       return;
     }
-    say('Du behöver Lava Key från Onion Lords kista.');
+    say('Du behöver Silver Key från Onion Lords kista.');
   }
   if (area === 'oven' && dy < 0 && Math.abs(bloo.x-muffinDoorX*ovenScale) < 58 &&
       bloo.y <= 31*ovenScale) {
@@ -1502,8 +1508,8 @@ function update(dt) {
     return;
   }
   if (area === 'floor' && dy > 0 && bloo.y > 755 && bloo.x > 1330) {
-    if (!templeKeys.has('wood')) {
-      say('Du behöver Wood Key från Mega Muffins bossrum.');
+    if (templeKeyTier < 2) {
+      say('Du behöver Gold Key från Mega Muffins bossrum.');
       return;
     }
     area = 'pantry'; Object.assign(bloo,{x:108,y:720}); shots=[]; arrows=[]; return;
@@ -1524,10 +1530,6 @@ function update(dt) {
     bloo.y <= fridgeDoor.y*floorScale+32;
   const atFridgeExit = area === 'fridge' && dy > 0 &&
     Math.abs(bloo.x-fridgeExit.x*fridgeScale) < 52 && bloo.y >= 245*fridgeScale;
-  if (atFridgeDoor && !templeKeys.has('frost')) {
-    say('Du behöver Frost Key för att gå in i kylen.');
-    return;
-  }
   if (atFridgeDoor || atFridgeExit) {
     area = atFridgeDoor ? 'fridge' : 'floor';
     bloo.x = atFridgeDoor ? fridgeExit.x*fridgeScale : fridgeDoor.x*floorScale;
