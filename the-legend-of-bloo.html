@@ -355,7 +355,18 @@ let potions = [false,false];
 let storedPotions = [];
 const isPotion = id => Object.hasOwn(catalog,id) && catalog[id].slot === 'potion';
 const restorePotion = id => id === true ? 'potion' : isPotion(id) ? id : false;
+let starterSlingshotGranted = false;
+function grantStarterSlingshot() {
+  if (starterSlingshotGranted) return;
+  if (!owned.includes('slingshot')) {
+    if (equipped.gadget && bagFull()) return;
+    owned.push('slingshot');
+    equipped.gadget ??= 'slingshot';
+  }
+  starterSlingshotGranted = true;
+}
 function restoreProgress(saved) {
+  starterSlingshotGranted = saved?.starterSlingshotGranted === true;
   berryQuestStates = Object.fromEntries(berryQuests.flatMap(({id}) => {
     const state = saved?.berryQuestStates?.[id];
     return state === 'active' || state === 'claimed' ? [[id,state]] : [];
@@ -390,6 +401,7 @@ function restoreProgress(saved) {
   else if (Number.isInteger(saved?.potions)) potions = [restorePotion(saved.potions >= 1),restorePotion(saved.potions >= 2)];
   if (Array.isArray(saved?.storedPotions)) storedPotions = saved.storedPotions.filter(isPotion).slice(0,itemSlots.length);
   else if (Number.isSafeInteger(saved?.storedPotions)) storedPotions = Array(Math.max(0,Math.min(itemSlots.length,saved.storedPotions))).fill('potion');
+  grantStarterSlingshot();
 }
 function showSeeds() {
   seedsDisplay.textContent = '🌱 ' + seeds + ' Seeds';
@@ -658,7 +670,7 @@ let activeGame = '1';
 let lastAutoSave = 0;
 
 function saveGame() {
-  games[activeGame] = {berryQuestStates:{...berryQuestStates},berryPeaKills,illustratedPrologueSeen,seeds,ovenUnlocked,muffinDefeated,pastaDefeated,owned:[...owned],equipped:{...equipped},potions:[...potions],
+  games[activeGame] = {starterSlingshotGranted,berryQuestStates:{...berryQuestStates},berryPeaKills,illustratedPrologueSeen,seeds,ovenUnlocked,muffinDefeated,pastaDefeated,owned:[...owned],equipped:{...equipped},potions:[...potions],
     storedPotions:[...storedPotions],openedChests:[...openedChests],
     world:{area,bloo:{...bloo,guard:false,swing:0},onion:onion && {...onion},
       titan:titan && {...titan,balls:titan.balls.map(ball=>({...ball}))},
@@ -748,6 +760,7 @@ document.querySelector('#new-game').addEventListener('click', () => {
 });
 
 function saveSeeds() {
+  grantStarterSlingshot();
   showSeeds();
   updateBowButton();
   saveGame();
