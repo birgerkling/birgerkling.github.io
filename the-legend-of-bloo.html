@@ -9,7 +9,7 @@
 .health{display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:800}.health progress{flex:1;height:18px;min-width:40px;accent-color:#ee646b}.health output{white-space:nowrap;color:#bce889;font-size:14px}.health span{min-width:100px;text-align:right;font-variant-numeric:tabular-nums}
 dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;border-radius:12px;background:#2a2044;color:#fff0cd}dialog::backdrop{background:#150d24b0}dialog h2{margin:0 0 8px}dialog p{margin:8px 0 14px}.shop-actions{display:flex;gap:8px;flex-wrap:wrap}button:disabled{opacity:.5;cursor:default}[hidden]{display:none!important}
 #berry-dialog{max-height:85vh;overflow:auto}#berry-quests{display:grid;gap:8px;margin-bottom:12px}#berry-quests section{border:1px solid #795c95;padding:8px}#berry-quests p{margin:4px 0 7px}
-#bow-fire{touch-action:none}
+#gadget-stick{grid-column:1/-1;justify-self:start;border-color:#9187ce;background:#302747}#gadget-stick span{background:#5a4c85}#bow-fire{touch-action:none}
 #inventory-open{grid-column:1/-1;background:#554078} .actions{display:grid;grid-template-columns:repeat(2,auto)}
 #inventory{width:min(590px,calc(100% - 24px));max-height:calc(100dvh - 24px);border-radius:4px;box-shadow:inset 0 0 0 3px #3e2b56}
 .inventory-layout{display:grid;grid-template-columns:3fr 1.5fr 1.5fr;gap:10px;margin:14px 0}
@@ -26,9 +26,9 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 #joystick{display:none;width:94px;height:94px;flex:none;border:2px solid #836396;border-radius:50%;background:radial-gradient(circle,#402f58,#281d3b);touch-action:none;user-select:none;place-items:center}
 #joystick span{width:39px;height:39px;border:2px solid #b6a2d5;border-radius:50%;background:#624b87;pointer-events:none}
 @media(pointer:coarse){.pad{display:none}#joystick{display:grid}}
-#attack-stick{display:none;width:76px;height:76px;place-items:center;touch-action:none;user-select:none;border:2px solid #ad8496;border-radius:50%;background:#412b43}
-#attack-stick span{display:grid;place-items:center;width:35px;height:35px;border-radius:50%;background:#755063;pointer-events:none}
-@media(pointer:coarse){.controls{touch-action:none;user-select:none;-webkit-user-select:none}#attack-stick{display:grid}.actions [data-key="KeyE"]{display:none}}
+#attack-stick,#gadget-stick{display:none;width:76px;height:76px;place-items:center;touch-action:none;user-select:none;border:2px solid #ad8496;border-radius:50%;background:#412b43}
+#attack-stick span,#gadget-stick span{display:grid;place-items:center;width:35px;height:35px;border-radius:50%;background:#755063;pointer-events:none}
+@media(pointer:coarse){.controls{touch-action:none;user-select:none;-webkit-user-select:none}#attack-stick,#gadget-stick{display:grid}#bow-fire{display:none}.actions [data-key="KeyE"]{display:none}}
 #prologue{width:min(600px,calc(100% - 24px));max-height:calc(100dvh - 24px);border:3px solid #e2aa62;border-radius:0;background:#261939;box-shadow:inset 0 0 0 4px #503154;color:#fff0bc;font:bold clamp(13px,2.7vw,16px)/1.65 'Courier New',monospace;text-shadow:1px 2px #160e27}
 #prologue h2{color:#ffcf77;letter-spacing:2px;text-transform:uppercase}
 #prologue button{border-radius:0;font:inherit}
@@ -42,7 +42,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 <canvas width="480" height="270" aria-label="Bloo på köksbänken. Testa svärdet på kexet och skölden mot gröna ärtor."></canvas>
 <div class="health"><label for="health">HP</label><progress id="health" max="100" value="100"></progress><span id="health-value">100 / 100</span><output id="seeds" aria-label="Seeds">🌱 0 Seeds</output></div>
 <output id="chest-rewards" role="status" style="display:block;color:#ffe1a1;font-weight:bold"></output><footer><span>Gå med WASD eller pilarna · E eller v&auml;nsterklick p&aring; spelplanen för vapnet · håll F för SHIELD · 1 / 2 för drycker · mellanslag för gadget. Gå mot stegen för att klättra. R öppnar butiken · T öppnar kistor när du står nära.</span><button id="chest-open" hidden>Öppna kista · T</button><button id="shop-open" hidden>Butik · R</button><button id="berry-talk" hidden>Prata · R</button><button id="replay-prologue" aria-haspopup="dialog">Se loren igen</button><button id="accounts-open" aria-haspopup="dialog">Accounts</button><button id="reset" aria-label="Börja om">Börja om</button></footer>
-<div class="controls"><div id="joystick" role="group" aria-label="Joystick. Dra för att styra Bloo."><span aria-hidden="true"></span></div><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ Tree Sword</button><div id="attack-stick" role="group" aria-label="Svärd. Håll åt ett håll för att slå upprepade gånger."><span aria-hidden="true">⚔</span></div><button data-key="KeyF">⬟ Wooden Shield</button><button id="bow-fire" hidden>Bow · Mellanslag</button></div></div>
+<div class="controls"><div id="joystick" role="group" aria-label="Joystick. Dra för att styra Bloo."><span aria-hidden="true"></span></div><div class="pad"><button class="up" data-key="ArrowUp" aria-label="Upp">▲</button><button class="left" data-key="ArrowLeft" aria-label="Vänster">◀</button><button data-key="ArrowDown" aria-label="Ner">▼</button><button data-key="ArrowRight" aria-label="Höger">▶</button></div><div class="actions"><button id="inventory-open" aria-haspopup="dialog" aria-keyshortcuts="Q">Inventory · Q</button><button data-key="KeyE">⚔ Tree Sword</button><div id="attack-stick" role="group" aria-label="Svärd. Håll åt ett håll för att slå upprepade gånger."><span aria-hidden="true">⚔</span></div><button data-key="KeyF">⬟ Wooden Shield</button><button id="bow-fire" hidden>Bow · Mellanslag</button><div id="gadget-stick" role="group" aria-label="Gadget" hidden><span aria-hidden="true">✦</span></div></div></div>
 <dialog id="prologue" lang="en" aria-label="Prologue">
   <img id="story-art" src="./bloo-prologue/2.jpg" alt="">
   <div class="story-caption">
@@ -957,14 +957,48 @@ function inSwordRange(target) {
 }
 function down(...codes) { return codes.some(code => keys.has(code) || [...pointers.values()].includes(code)); }
 const bowButton = document.querySelector('#bow-fire');
+const gadgetStick = document.querySelector('#gadget-stick');
+const gadgetKnob = gadgetStick.firstElementChild;
+let gadgetPointer = null;
+let gadgetDirection = null;
+function resetGadgetStick() {
+  gadgetPointer = null;
+  gadgetDirection = null;
+  gadgetKnob.style.transform = '';
+}
+function moveGadgetStick(event) {
+  if (event.pointerId !== gadgetPointer) return;
+  const rect = gadgetStick.getBoundingClientRect();
+  const x = event.clientX-rect.left-rect.width/2;
+  const y = event.clientY-rect.top-rect.height/2;
+  const distance = Math.hypot(x,y);
+  gadgetDirection = distance > 9 ? {x:x/distance,y:y/distance} : null;
+  const scale = 1/Math.max(1,distance/22);
+  gadgetKnob.style.transform = 'translate('+x*scale+'px,'+y*scale+'px)';
+}
+gadgetStick.addEventListener('pointerdown', event => {
+  if (event.button !== 0 || gadgetPointer !== null) return;
+  event.preventDefault();
+  gadgetPointer = event.pointerId;
+  gadgetStick.setPointerCapture(event.pointerId);
+  moveGadgetStick(event);
+});
+gadgetStick.addEventListener('pointermove',moveGadgetStick);
+for (const type of ['pointerup','pointercancel','lostpointercapture']) {
+  gadgetStick.addEventListener(type,event => {
+    if (event.pointerId === gadgetPointer) resetGadgetStick();
+  });
+}
 function updateBowButton() {
   const id = equipped.gadget;
   document.querySelector('[data-key="KeyE"]').textContent = '⚔ ' + (catalog[equipped.weapon]?.name ?? 'Tree Sword');
   document.querySelector('[data-key="KeyF"]').textContent = '⬟ ' + shieldStats().name;
-  bowButton.hidden = !id;
+  bowButton.hidden = gadgetStick.hidden = !id;
+  if (!id) resetGadgetStick();
+  else gadgetStick.setAttribute('aria-label',catalog[id].name+'. Dra åt ett håll för att sikta och använda gadgeten.');
   if (id) bowButton.textContent = catalog[id].name + ' · Mellanslag';
 }
-function useGadget(pointer = swordPointer, repeating = false) {
+function useGadget(pointer = swordPointer, repeating = false, direction = null) {
   const id = equipped.gadget;
   if (!id || !bloo.hp || climb || inventory.open || shop.open || down('KeyF')) return;
   if (id === 'onionTears') {
@@ -972,7 +1006,7 @@ function useGadget(pointer = swordPointer, repeating = false) {
       if (!repeating) say('ONION Tears laddar: ' + Math.ceil(tearsCooldown) + ' s');
       return;
     }
-    const aim = swordDirection(pointer);
+    const aim = direction ?? swordDirection(pointer);
     onionThrow = {area,x:bloo.x,y:bloo.y,vx:aim.x,vy:aim.y,
       remaining:Math.min(175,aim.distance ?? 175)};
     tearsCooldown = 12;
@@ -980,7 +1014,7 @@ function useGadget(pointer = swordPointer, repeating = false) {
     return;
   }
   if (bowCooldown > 0) return;
-  const aim = swordDirection(pointer);
+  const aim = direction ?? swordDirection(pointer);
   const gadget = catalog[id];
   if (!['bow','slingshot','staff'].includes(id)) return;
   arrows.push({originX:bloo.x,originY:bloo.y,x:bloo.x,y:bloo.y,vx:aim.x*240,vy:aim.y*240,life:id === 'staff' ? 1.5 : 1,damage:gadget.power,gadget:id});
@@ -1234,6 +1268,7 @@ for (const type of ['pointercancel','lostpointercapture']) {
   });
 }
 function clearInputs() {
+  resetGadgetStick();
   heldCanvasAttack = null;
   heldGadget = null;
   resetAttackStick();
@@ -1466,7 +1501,8 @@ function update(dt) {
   } else bloo.step = 0;
 
   bowCooldown = Math.max(0,bowCooldown-dt);
-  if (heldGadget || down('Space')) useGadget(heldGadget?.touch ? null : swordPointer,true);
+  if (gadgetDirection) useGadget(null,true,gadgetDirection);
+  else if (heldGadget || down('Space')) useGadget(heldGadget?.touch ? null : swordPointer,true);
   arrows = arrows.filter(arrow => {
     arrow.x += arrow.vx*dt;
     arrow.y += arrow.vy*dt;
