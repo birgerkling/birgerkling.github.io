@@ -198,6 +198,13 @@ const catalog = {
 const itemRarities = {"tree":"Common","wooden":"Common","slingshot":"Common","steel":"Uncommon","iron":"Uncommon","leatherUpper":"Uncommon","leatherLower":"Uncommon","chainUpper":"Uncommon","chainLower":"Uncommon","bow":"Uncommon","potion":"Uncommon","ironUpper":"Rare","ironLower":"Rare","assassin":"Rare","magnetic":"Rare","boomerang":"Rare","speedPotion":"Rare","mediumPotion":"Rare","axe":"Epic","morning":"Epic","poison":"Epic","tower":"Epic","berserker":"Epic","staff":"Epic","bigPotion":"Epic","daggers":"Legendary","vampire":"Legendary","spiked":"Legendary","platinum":"Legendary","explosive":"Legendary","platinumUpper":"Legendary","platinumLower":"Legendary","teleport":"Legendary","medKit":"Legendary"};
 const rarityColors = {Common:'#c4c2cf',Uncommon:'#a2df86',Rare:'#8ac9ff',Epic:'#dca4ff',Legendary:'#ffd36e'};
 function markRarity(element,id) {
+  if (id && element.tagName === 'BUTTON') {
+    element.classList.add('item-preview');
+    element.dataset.icon = id;
+  } else if (element.classList.contains('item-preview')) {
+    element.classList.remove('item-preview');
+    delete element.dataset.icon;
+  }
   const rarity = itemRarities[id];
   element.style.color = rarityColors[rarity] ?? '';
   if (!rarity) return;
@@ -842,7 +849,17 @@ function renderInventory() {
     const cell = document.querySelector('#gear-'+slot);
     const id = equipped[slot];
     cell.textContent = fallback;
-    if (!id) continue;
+    if (!id) {
+      const starter = slot === 'weapon' ? 'tree' : slot === 'shield' ? 'wooden' : null;
+      if (starter) {
+        const item = document.createElement('span');
+        item.className = 'item-preview';
+        item.dataset.icon = starter;
+        item.textContent = fallback;
+        cell.replaceChildren(item);
+      }
+      continue;
+    }
     const button = equipmentButton(id, () => {
       if (bagFull()) return;
       delete equipped[slot];
