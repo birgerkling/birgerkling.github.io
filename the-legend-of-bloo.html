@@ -178,18 +178,21 @@ const progressKey = 'legend-of-bloo.progress';
 const keys = new Set();
 const pointers = new Map();
 const valid = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyE','KeyF']);
-const obstacles = [
-  {x:22,y:31,w:103,h:65},
-  {x:328,y:152,w:118,h:80},
-  {x:202,y:28,w:64,h:30}
+const townScale = 2;
+const townBuildings = [
+  {x:56,y:58,w:130,h:70,label:'ARMOR SHOP',roof:'#6265ad',slots:['upper','lower']},
+  {x:380,y:58,w:146,h:70,label:'MYSTICAL SHOP',roof:'#8d51a4',slots:['gadget','potion']},
+  {x:720,y:58,w:142,h:70,label:'COMBAT SHOP',roof:'#ab5a63',slots:['weapon','shield']},
+  {x:295,y:333,w:98,h:62,roof:'#526a9e'},
+  {x:695,y:353,w:104,h:61,roof:'#a06956'}
 ];
-const cracker = {x:225,y:144};
+const townTents = [{x:63,y:304,w:77,h:52},{x:844,y:269,w:75,h:52},{x:484,y:405,w:78,h:52}];
+const townObstacles = [...townBuildings,...townTents];
+const pinata = {x:660,y:219,maxHP:50,hp:50,respawn:0};
 const enemySpawns = [
   ...pantryLoot.flatMap(([x,y])=>[[-16,0],[16,0],[0,-17]].map(([dx,dy])=>({area:'pantry',x:(x+dx)*3,y:(y+dy)*3,bean:true}))),
   ...[[248,110],[161,47],[59,168],[332,144],[426,93]].map(([x,y]) =>
     ({area:'oven',x:x*ovenScale,y:y*ovenScale,cookie:true})),
-  {area:'counter',x:410,y:80},
-  {area:'counter',x:290,y:191},
   {area:'floor',x:252,y:328},
   {area:'floor',x:734,y:357},
   {area:'floor',x:1125,y:300},
@@ -233,7 +236,7 @@ const ladderX = 177;
 const floorScale = 3;
 const shopkeeper = {x:ladderX*floorScale+100,y:106*floorScale+8};
 function areaScale() {
-  return area === 'floor' ? floorScale : area === 'fridge' ? fridgeScale : area === 'oven' ? ovenScale : area === 'pantry' ? pantryScale : 1;
+  return area === 'counter' ? townScale : area === 'floor' ? floorScale : area === 'fridge' ? fridgeScale : area === 'oven' ? ovenScale : area === 'pantry' ? pantryScale : 1;
 }
 let swordPointer = null;
 let ovenUnlocked = false;
@@ -282,7 +285,7 @@ let bowCooldown = 0;
 let onionThrow = null;
 let tearCloud = null;
 let tearsCooldown = 0;
-let bloo, enemies, shots, broken, area, climb, last = 0;
+let bloo, enemies, shots, area, climb, last = 0;
 
 function say(message) { if (status.textContent !== message) status.textContent = message; }
 function reset() {
@@ -307,8 +310,9 @@ function reset() {
   updateBowButton();
   shopOpen.hidden = true;
   chestButton.hidden = true;
-  broken = false;
-  say('Slå på kexet!');
+  pinata.hp = pinata.maxHP;
+  pinata.respawn = 0;
+  say('Välkommen till Blueberry Town!');
 }
 function showHealth() {
   healthBar.value = bloo.hp;
@@ -323,6 +327,7 @@ function armorStats() {
   return [0,1,2,3].map(index => (armorSets[upper]?.one[index] ?? 0) + (armorSets[lower]?.one[index] ?? 0));
 }
 function hurt(message,baseDamage = peaDamage,source = null,from = source,melee = false) {
+  if (area === 'counter') return;
   const [normalReduction,meleeReduction,,healChance] = armorStats();
   const reduction = melee ? meleeReduction : normalReduction;
   const shield = shieldStats();
@@ -357,8 +362,10 @@ function hurt(message,baseDamage = peaDamage,source = null,from = source,melee =
   say(bloo.hp ? message + ' −' + damage + ' HP' : 'Bloo föll! Tryck på Börja om.');
 }
 function shopNearby() {
-  return area === 'floor' && !climb && bloo.hp > 0 &&
-    Math.hypot(bloo.x-shopkeeper.x,bloo.y-shopkeeper.y) <= 85;
+  if (climb || !bloo.hp) return undefined;
+  if (area === 'floor' && Math.hypot(bloo.x-shopkeeper.x,bloo.y-shopkeeper.y) <= 85) return shopkeeper;
+  if (area === 'counter') return townBuildings.find(building => building.slots &&
+    Math.hypot(bloo.x-building.x-building.w/2,bloo.y-building.y-building.h) <= 68);
 }
 function storedItems() {
   return [...owned.filter(id => equipped[catalog[id].slot] !== id), ...storedPotions];
@@ -412,15 +419,18 @@ function canBuy(id) {
   return weaponUnlocked(id) && seeds >= catalog[id].cost && !owned.includes(id) && !bagFull();
 }
 function refreshShop() {
+  const slots = shopNearby()?.slots;
   for (const button of stock) {
     const id = button.dataset.buy;
-    button.disabled = !canBuy(id);
+    button.hidden = !!slots && !slots.includes(catalog[id].slot);
+    button.disabled = button.hidden || !canBuy(id);
     button.title = !weaponUnlocked(id) ? catalog[id].gate : owned.includes(id) ? 'Redan köpt' : bagFull() ? 'Items är fullt' : '';
   }
 }
 function openShop() {
   if (!shopNearby() || shop.open) return;
   clearInputs();
+  document.querySelector('#shop-title').textContent = shopNearby().label ?? '🫐 Blåbärsbutiken';
   shopMessage.textContent = 'Du har ' + seeds + ' Seeds. Items: ' + storedItems().length + '/' + itemSlots.length + '.';
   refreshShop();
   shop.showModal();
@@ -429,7 +439,7 @@ shopOpen.addEventListener('click',openShop);
 shop.addEventListener('close',clearInputs);
 for (const button of stock) button.addEventListener('click', () => {
   const id = button.dataset.buy;
-  if (!shop.open || !shopNearby() || !canBuy(id)) return;
+  if (!shop.open || !shopNearby() || button.hidden || !canBuy(id)) return;
   const item = catalog[id];
   seeds -= item.cost;
   if (isPotion(id)) storedPotions.push(id);
@@ -489,7 +499,7 @@ let lastAutoSave = 0;
 function saveGame() {
   games[activeGame] = {illustratedPrologueSeen,seeds,ovenUnlocked,muffinDefeated,pastaDefeated,owned:[...owned],equipped:{...equipped},potions:[...potions],
     storedPotions:[...storedPotions],openedChests:[...openedChests],
-    world:{area,bloo:{...bloo,guard:false,swing:0},broken,onion:onion && {...onion},
+    world:{area,bloo:{...bloo,guard:false,swing:0},onion:onion && {...onion},
       titan:titan && {...titan,balls:titan.balls.map(ball=>({...ball}))},
       muffin:muffin && {...muffin,sprinkles:muffin.sprinkles.map(drop => ({...drop}))},
       enemies:enemies.map(enemy => ({...enemy})),climb:climb && {...climb},bowCooldown,tearsCooldown,onionThrow,tearCloud}};
@@ -510,11 +520,12 @@ function loadGame(id) {
   if (world && ['counter','floor','fridge','boss','oven','muffin','pantry','titan'].includes(world.area) &&
       (world.area !== 'muffin' || world.muffin) && (world.area !== 'boss' || world.onion)) {
     const newEnemies = enemies;
-    ({area,bloo,broken,onion,enemies,climb,bowCooldown,tearsCooldown} = world);
+    ({area,bloo,onion,enemies,climb,bowCooldown,tearsCooldown} = world);
     onionThrow = world.onionThrow ? {...world.onionThrow} : null;
     tearCloud = world.tearCloud ? {...world.tearCloud} : null;
     bloo = {...bloo,daggerFollowup:0};
-    enemies = enemies.map(enemy => ({...enemy}));
+    enemies = enemies.filter(enemy => enemy.area !== 'counter').map(enemy => ({...enemy}));
+    if (area === 'counter' && !climb && !canMove(bloo.x,bloo.y)) Object.assign(bloo,{x:177,y:466});
     if (!enemies.some(enemy => enemy.cookie)) enemies.push(...newEnemies.filter(enemy => enemy.cookie));
     onion = onion && {...onion};
     titan = world.titan ? {...world.titan,hp:Math.min(world.titan.hp,titanMaxHP),balls:world.titan.balls.map(ball=>({...ball}))} : null;
@@ -531,6 +542,7 @@ function loadGame(id) {
       sprinkles:world.muffin.sprinkles.map(drop => ({...drop}))
     } : null;
     climb = climb && {...climb};
+    if (area === 'counter' && climb?.endY === 263) Object.assign(climb,{startY:480,endY:506});
     showHealth();
     say(bloo.hp ? 'Spel ' + id + ' fortsätter' : 'Bloo föll! Tryck på Börja om.');
   }
@@ -823,9 +835,8 @@ function strike(damage,id,daggerHand = -1) {
     reward += damageEnemy(pea,damage);
     hit = pea;
   }
-  if (area === 'counter' && !broken && inSwordRange(cracker)) {
-    broken = true;
-    say('Kexet gick sönder!');
+  if (area === 'counter' && pinata.hp && inSwordRange(pinata)) {
+    hitPinata(damage);
   } else if (!reward) say(hit ? (hit.cookie ? 'Cookie' : hit.egg ? 'Egg' : 'Pea') + ' tog ' + damage + ' skada!' : 'SWORD!');
   if (reward) awardSeeds(reward);
 }
@@ -980,16 +991,29 @@ for (const button of document.querySelectorAll('[data-key]')) {
 }
 document.querySelector('#reset').addEventListener('click', reset);
 
+function hitPinata(damage) {
+  pinata.hp = Math.max(0,pinata.hp-damage);
+  if (!pinata.hp) {
+    pinata.respawn = 3;
+    say('Potatispiñatan gick sönder!');
+  }
+}
 function canMove(x,y) {
+  if (area === 'counter') return x > 13 && x < 947 && y > 24 && y < 520 &&
+    !townObstacles.some(o => x > o.x-10 && x < o.x+o.w+10 && y > o.y-9 && y < o.y+o.h+9);
   const onFloor = area === 'floor';
   const scale = areaScale();
-  const furniture = onFloor ? floorFurniture : area === 'fridge' ? fridgeBlocks : area === 'oven' ? ovenWalls : area === 'pantry' ? pantryWalls : (area === 'boss' || area === 'muffin' || area === 'titan') ? [] : obstacles;
+  const furniture = onFloor ? floorFurniture : area === 'fridge' ? fridgeBlocks : area === 'oven' ? ovenWalls : area === 'pantry' ? pantryWalls : [];
   return x > 13 && x < 480*scale-13 && y > 19*scale+6 && y < 270*scale-20 &&
     !furniture.some(o => x > o.x*scale-10 && x < (o.x+o.w)*scale+10 &&
       y > o.y*scale-9 && y < (o.y+o.h)*scale+9);
 }
 function update(dt) {
   if (prologue.open || accounts.open || shop.open || inventory.open) return;
+  if (area === 'counter' && !pinata.hp) {
+    pinata.respawn -= dt;
+    if (pinata.respawn <= 0) pinata.hp = pinata.maxHP;
+  }
   for (const pea of enemies) {
     if (pea.hp) continue;
     pea.respawn -= dt;
@@ -1038,9 +1062,9 @@ function update(dt) {
       shots = [];
       arrows = [];
       bloo.x = area === 'counter' ? ladderX : ladderX*floorScale;
-      bloo.y = area === 'counter' ? 233 : 106*floorScale;
+      bloo.y = area === 'counter' ? 466 : 106*floorScale;
       climb = null;
-      say(area === 'counter' ? 'Uppe på diskbänken' : 'Nere på köksgolvet');
+      say(area === 'counter' ? 'Blueberry Town' : 'Nere på köksgolvet');
     }
     return;
   }
@@ -1134,14 +1158,14 @@ function update(dt) {
   const onCounter = area === 'counter';
   const ladderCenter = onCounter ? ladderX : ladderX*floorScale;
   if (Math.abs(bloo.x-ladderCenter) < (onCounter ? 15 : 29) && (
-    (onCounter && dy > 0 && bloo.y >= 240) ||
+    (onCounter && dy > 0 && bloo.y >= 480) ||
     (area === 'floor' && dy < 0 && bloo.y >= 82*floorScale && bloo.y <= 102*floorScale)
   )) {
     bloo.x = ladderCenter;
     bloo.fx = 0;
     bloo.fy = dy;
     bloo.swing = 0;
-    climb = {elapsed:0,startY:bloo.y,endY:onCounter ? 263 : 68*floorScale,
+    climb = {elapsed:0,startY:bloo.y,endY:onCounter ? 506 : 68*floorScale,
       next:area === 'counter' ? 'floor' : 'counter'};
     say('Klättrar…');
     return;
@@ -1163,6 +1187,10 @@ function update(dt) {
     arrow.y += arrow.vy*dt;
     arrow.life -= dt;
     if (!canMove(arrow.x,arrow.y) || arrow.life <= 0) return false;
+    if (area === 'counter' && pinata.hp && Math.hypot(pinata.x-arrow.x,pinata.y-arrow.y) < 18) {
+      hitPinata(catalog.bow.power);
+      return false;
+    }
     if (area === 'boss' && onion.hp > 0 && Math.hypot(onion.x-arrow.x,onion.y-arrow.y) < 29) {
       hitOnion(catalog.bow.power,arrow.originX,arrow.originY);
       return false;
@@ -2124,50 +2152,74 @@ function draw() {
     ctx.restore();
     return;
   }
-  box('#552f26',0,0,480,270);
-  for (let i=0;i<9;i++) {
-    box(i%2?'#b97949':'#c58755',5,12+i*27,470,26);
-    box('#dda06a',5,12+i*27,470,1);
+  drawTown();
+}
+function drawTown() {
+  const camera = cameraPosition();
+  ctx.save();
+  ctx.translate(-camera.x,-camera.y);
+  box('#583748',0,0,960,540);
+  for (let y=12;y<528;y+=26) {
+    box(y%4 ? '#bb805f' : '#ae7155',6,y,948,24);
+    box('#d29a73',6,y,948,2);
   }
-  for (let i=0;i<150;i++) box(i%2?'#c18351':'#bb7a4d',(i*73)%462+7,(i*43)%235+14,3+i%17,1);
-  box('#75452e',5,255,470,11);
-  box('#edaf72',5,254,470,2);
-
-  // Skärbräda, sockertärningar och tallrik ger Bloo något att springa runt.
-  box('#754633',22,34,103,65);
-  box('#e3a567',22,30,103,65);
-  box('#f2bc7f',25,30,96,3);
-  box('#c88852',28,37,89,53);
-  box('#a66d49',30,39,85,49);
-  box('#dba36a',31,40,83,47);
-  for(let i=0;i<3;i++) {
-    box('#af784e',42+i*21,56+i*2,17,17);
-    box('#f8e7c4',41+i*21,53+i*2,17,16);
-    box('#fff7df',41+i*21,53+i*2,17,4);
+  for (let i=0;i<260;i++) box('#a36955',(i*73)%938+10,(i*47)%512+12,3+i%15,1);
+  box('#d6ac83',19,151,920,36);
+  box('#d6ac83',158,180,38,310);
+  box('#d6ac83',195,257,730,25);
+  for (let x=35;x<933;x+=38) box('#ebc29a',x,163,22,5);
+  for (const {x,y,w,h,roof,label} of townBuildings) {
+    box('#684350',x+5,y+9,w,h);
+    box('#f4c198',x+4,y+22,w-8,h-22);
+    box('#211d38',x-4,y+11,w+8,25);
+    box(roof,x-4,y+10,w+8,20);
+    box(roof,x+7,y,w-14,13);
+    box('#ffffff40',x+8,y+3,w-16,3);
+    box('#705052',x+w/2-12,y+h-26,24,26);
+    box('#ffd473',x+w/2+5,y+h-14,3,3);
+    for (const wx of [x+14,x+w-29]) {
+      box('#40385a',wx,y+42,15,14);
+      box('#ffdd8c',wx+2,y+44,11,10);
+      box('#a76861',wx+6,y+44,2,10);
+    }
+    if (label) {
+      box('#372645',x,y+15,w,14);
+      ctx.fillStyle='#fff0cc';ctx.font='bold 10px monospace';ctx.textAlign='center';
+      ctx.fillText((shopNearby()?.label === label ? 'R · ' : '')+label,x+w/2,y+25);
+      ctx.textAlign='start';
+    }
   }
-  box('#855236',202,31,64,27);
-  box('#dfbf85',202,28,64,25);
-  box('#f6dfad',207,32,54,16);
-  ctx.fillStyle='#79553b'; ctx.font='bold 9px monospace'; ctx.fillText('SOCKER',218,43);
-
-  oval('#8b5138',387,197,63,42);
-  oval('#e8d6bc',387,191,62,42);
-  oval('#fff1d7',387,188,59,38);
-  oval('#a8b6bd',387,191,46,30);
-  oval('#ece7db',387,192,44,28);
-  oval('#d6c9b6',387,203,34,12);
-
-  if (!broken) {
-    box('#855033',cracker.x-11,cracker.y-6,22,16);
-    box('#e2a44e',cracker.x-10,cracker.y-9,20,16);
-    box('#ffd381',cracker.x-8,cracker.y-7,16,12);
-    for (const dx of [-5,0,5]) for (const dy of [-4,1]) box('#ad723d',cracker.x+dx,cracker.y+dy,2,2);
-  } else {
-    for(let i=0;i<9;i++) box(i%2?'#ffd381':'#9c6237',cracker.x-15+(i*13)%30,cracker.y-8+(i*17)%16,3+i%3,3);
+  for (const {x,y,w,h} of townTents) {
+    for (let row=0;row<h;row+=2) {
+      const inset=Math.floor((h-row)*w/(2*h));
+      box(row%4 ? '#edab9e' : '#d37f89',x+inset,y+row,w-2*inset,2);
+    }
+    box('#54354a',x+w/2-8,y+h-19,16,19);
+    box('#ffe0a4',x+w/2,y-9,14,6);
   }
+  box('#432842',28,199,185,23);
+  ctx.font='bold 14px monospace';ctx.fillStyle='#ffe5a5';ctx.fillText('BLUEBERRY TOWN',46,215);
+  drawLadder(ladderX,478,43);
+  ctx.font='bold 9px monospace';ctx.fillText('KÖKSGOLV',197,499);
+  const {x,y,hp,maxHP} = pinata;
+  box('#70455b',x-42,y+14,84,5);
+  if (hp) {
+    box('#57384a',x-25,y-48,4,65);
+    box('#57384a',x-25,y-48,28,4);
+    box('#f1d0a1',x,y-44,2,24);
+    box('#582c41',x-16,y-21,32,29);
+    box('#bf773e',x-13,y-19,26,25);
+    for (let row=0;row<4;row++) box(['#f4ad64','#dc789c','#b997e2','#82bcb4'][row],x-12,y-17+row*5,24,4);
+    box('#513048',x-7,y-8,3,3);
+    box('#513048',x+5,y-8,3,3);
+    box('#4b3045',x-17,y-31,34,4);
+    box('#aee18f',x-17,y-31,34*hp/maxHP,4);
+  }
+  ctx.fillStyle='#ffe5a5';ctx.font='bold 9px monospace';
+  ctx.fillText(hp ? 'POTATISPIÑATA · '+hp+'/'+maxHP : 'PIÑATAN KOMMER TILLBAKA',x-65,y+32);
   drawEnemies();
-  drawLadder(ladderX,239,29);
   drawBloo();
+  ctx.restore();
 }
 function frame(now) {
   const dt=last ? Math.min((now-last)/1000,.04) : 0;
