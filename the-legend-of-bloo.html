@@ -308,7 +308,6 @@ const fridgeBlocks = [
 ];
 const ladderX = 177;
 const floorScale = 3;
-const shopkeeper = {x:ladderX*floorScale+100,y:106*floorScale+8};
 function areaScale() {
   return area === 'counter' ? townScale : area === 'floor' ? floorScale : area === 'fridge' ? fridgeScale : area === 'oven' ? ovenScale : area === 'pantry' ? pantryScale : 1;
 }
@@ -442,7 +441,6 @@ function hurt(message,baseDamage = peaDamage,source = null,from = source,melee =
 }
 function shopNearby() {
   if (climb || !bloo.hp) return undefined;
-  if (area === 'floor' && Math.hypot(bloo.x-shopkeeper.x,bloo.y-shopkeeper.y) <= 85) return shopkeeper;
   if (area === 'counter') return townBuildings.find(building => building.slots &&
     Math.hypot(bloo.x-building.x-building.w/2,bloo.y-building.y-building.h) <= 68);
 }
@@ -1844,31 +1842,6 @@ function drawFloor() {
   for (let x=79;x<181;x+=9) box('#edaa98',x,214,3,19);
 }
 
-function drawShopkeeper() {
-  const {x,y} = shopkeeper;
-  box('#69443c',x-46,y-9,92,31);
-  box('#c39062',x-44,y-11,88,16);
-  box('#8c635e',x-42,y+6,84,13);
-  box('#f0bd84',x-44,y-11,88,3);
-  box('#8fcaa8',x-34,y-8,8,11);
-  box('#dad496',x-32,y-11,4,3);
-  box('#8fcaa8',x+25,y-8,8,11);
-  box('#dad496',x+27,y-11,4,3);
-  oval('#1b2045',x,y-15,15,14);
-  oval('#7659be',x,y-16,12,11);
-  box('#ae91ed',x-8,y-22,5,3);
-  box('#32285a',x-5,y-28,10,3);
-  box('#1a1736',x-6,y-17,3,4);
-  box('#1a1736',x+4,y-17,3,4);
-  box('#ffe3ad',x-2,y-12,5,2);
-  const label = shopNearby() ? 'R · BUTIK' : 'BUTIK';
-  box('#33243d',x-37,y-48,74,15);
-  ctx.font = 'bold 10px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#ffe5ae';
-  ctx.fillText(label,x,y-37);
-  ctx.textAlign = 'start';
-}
 function drawEnemies() {
   if (tearCloud?.area === area) {
     const {x,y} = tearCloud;
@@ -2217,7 +2190,6 @@ function draw() {
     box('#472c53',444,252,34,18);
     ctx.font='bold 7px monospace';ctx.fillStyle='#ffdf9a';ctx.fillText('PANTRY',447,262);
     ctx.restore();
-    drawShopkeeper();
     drawEnemies();
     drawBloo();
     ctx.restore();
