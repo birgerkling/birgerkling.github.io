@@ -80,7 +80,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
   <div class="inventory-layout">
     <section class="inventory-items"><h3>Items</h3><div class="slots item-slots"><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div><div class="slot"><span aria-label="Tom ruta">—</span></div></div></section>
     <section><h3>Active Weapon</h3><div class="slot equipped"><b aria-hidden="true">⚔</b><span id="gear-weapon">Tree Sword</span></div><h3>Active Shield</h3><div class="slot equipped"><b aria-hidden="true">⬟</b><span id="gear-shield">Wooden Shield</span></div></section>
-    <section><h3>Active Armor</h3><div class="slots"><div class="slot"><span id="gear-upper">Upper · —</span></div><div class="slot"><span id="gear-lower">Lower · —</span></div></div></section>
+    <section><h3>Active Armor</h3><div class="slots"><div class="slot"><span id="gear-upper">Upper · —</span></div><div class="slot"><span id="gear-lower">Active Pants · —</span></div><div class="slot"><span id="gear-key">Key · —</span></div></div></section>
     <section><h3>Active Potions</h3><div class="slots potion-slots"><div class="slot"><button data-drink>Tom</button><button data-store-potion hidden>Till Items</button></div><div class="slot"><button data-drink>Tom</button><button data-store-potion hidden>Till Items</button></div></div></section>
     <section><h3>Active Gadget</h3><div class="slot" id="gear-gadget">—</div></section>
   </div>
@@ -885,7 +885,7 @@ function renderInventory() {
   claimSlingshot.hidden = owned.includes('slingshot');
   claimSlingshot.disabled = !!equipped.gadget && bagFull();
   claimSlingshot.title = claimSlingshot.disabled ? 'Frigör en plats i Items först' : '';
-  const activeSlots = {weapon:'Tree Sword',shield:'Wooden Shield',upper:'Upper · —',lower:'Lower · —',gadget:'—'};
+  const activeSlots = {weapon:'Tree Sword',shield:'Wooden Shield',upper:'Upper · —',lower:'Active Pants · —',gadget:'—'};
   const bag = storedItems();
   for (const [slot,fallback] of Object.entries(activeSlots)) {
     const cell = document.querySelector('#gear-'+slot);
