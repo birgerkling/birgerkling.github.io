@@ -184,10 +184,20 @@ const townBuildings = [
   {x:380,y:58,w:146,h:70,label:'MYSTICAL SHOP',roof:'#8d51a4',slots:['gadget','potion']},
   {x:720,y:58,w:142,h:70,label:'COMBAT SHOP',roof:'#ab5a63',slots:['weapon','shield']},
   {x:295,y:333,w:98,h:62,roof:'#526a9e'},
-  {x:695,y:353,w:104,h:61,roof:'#a06956'}
+  {x:695,y:353,w:104,h:61,roof:'#42528e'},
+  {x:229,y:45,w:103,h:80,roof:'#434f9b'},
+  {x:577,y:49,w:94,h:77,roof:'#4859ac'},
+  {x:234,y:202,w:91,h:72,roof:'#545fb6'},
+  {x:759,y:194,w:84,h:67,roof:'#3e509d'},
+  {x:38,y:404,w:88,h:70,roof:'#505da6'},
+  {x:591,y:405,w:75,h:64,roof:'#4b56a0'}
 ];
-const townTents = [{x:63,y:304,w:77,h:52},{x:844,y:269,w:75,h:52},{x:484,y:405,w:78,h:52}];
-const townObstacles = [...townBuildings,...townTents];
+const townTents = [
+  {x:63,y:304,w:77,h:52},{x:850,y:291,w:69,h:52},{x:484,y:405,w:78,h:52},
+  {x:219,y:363,w:52,h:57},{x:863,y:402,w:62,h:55},{x:408,y:329,w:52,h:53}
+];
+const townStatue = {x:448,y:237,w:64,h:55};
+const townObstacles = [...townBuildings,...townTents,townStatue];
 const pinata = {x:660,y:219,maxHP:50,hp:50,respawn:0};
 const enemySpawns = [
   ...pantryLoot.flatMap(([x,y])=>[[-16,0],[16,0],[0,-17]].map(([dx,dy])=>({area:'pantry',x:(x+dx)*3,y:(y+dy)*3,bean:true}))),
@@ -2154,49 +2164,94 @@ function draw() {
   }
   drawTown();
 }
+function drawTownHouse({x,y,w,h,roof,label}) {
+  const center = x+w/2;
+  box('#382a47',x+5,y+26,w,h-20);
+  box('#885064',x+4,y+25,w-8,h-25);
+  for (let row=38;row<h;row+=7) {
+    box('#704258',x+4,y+row,w-8,1);
+    for (let col=10+row%3*7;col<w-9;col+=18) box('#704258',x+col,y+row,1,6);
+  }
+  for(let row=0;row<36;row+=3) {
+    const inset = Math.round((1-Math.sqrt(1-((36-row)/36)**2))*w*.49);
+    box('#26203c',x+inset-3,y+row,w-2*inset+6,5);
+    box(roof,x+inset,y+row,w-2*inset,3);
+    for (let col=inset+7+(row%2)*5;col<w-inset-5;col+=13) box('#b1a7e046',x+col,y+row,7,1);
+  }
+  box('#29213d',x-4,y+35,w+8,5);
+  box('#3d2841',center-12,y+h-24,24,24);
+  box('#aa6e66',center-8,y+h-21,16,21);
+  box('#ffd473',center+4,y+h-11,2,2);
+  for (const wx of [x+13,x+w-28]) {
+    box('#b4777c',wx-2,y+h-28,19,20);
+    box('#ffb966',wx+2,y+h-26,11,14);
+    box('#ffe5a0',wx,y+h-22,15,11);
+    box('#935968',wx+6,y+h-26,2,15);
+    box('#935968',wx,y+h-17,15,2);
+  }
+  if (label) {
+    box('#372645',x+6,y+26,w-12,13);
+    ctx.fillStyle='#fff0cc';ctx.font='bold 10px monospace';ctx.textAlign='center';
+    ctx.fillText((shopNearby()?.label === label ? 'R · ' : '')+label,center,y+36);
+    ctx.textAlign='start';
+  }
+}
+function drawTownTent({x,y,w,h},index) {
+  const [dark,light] = index%2 ? ['#565380','#8b7bb1'] : ['#825478','#b77997'];
+  for (let row=0;row<h;row+=2) {
+    const inset=Math.floor((h-row)*w/(2*h));
+    box('#332943',x+inset-2,y+row,w-2*inset+4,2);
+    box(dark,x+inset,y+row,w-2*inset,2);
+    box(light,x+inset+3,y+row,Math.max(0,(w-2*inset)/2-4),2);
+  }
+  box('#39283f',x+w/2-10,y+h-19,20,19);
+  box('#ffc982',x+w/2-4,y+h-14,8,11);
+  box('#ffe2a0',x+w/2,y-7,13,5);
+}
 function drawTown() {
   const camera = cameraPosition();
   ctx.save();
   ctx.translate(-camera.x,-camera.y);
-  box('#583748',0,0,960,540);
+  box('#2e2447',0,0,960,540);
   for (let y=12;y<528;y+=26) {
-    box(y%4 ? '#bb805f' : '#ae7155',6,y,948,24);
-    box('#d29a73',6,y,948,2);
+    box(y%4 ? '#715067' : '#674960',6,y,948,24);
+    box('#865e73',6,y,948,2);
   }
-  for (let i=0;i<260;i++) box('#a36955',(i*73)%938+10,(i*47)%512+12,3+i%15,1);
-  box('#d6ac83',19,151,920,36);
-  box('#d6ac83',158,180,38,310);
-  box('#d6ac83',195,257,730,25);
-  for (let x=35;x<933;x+=38) box('#ebc29a',x,163,22,5);
-  for (const {x,y,w,h,roof,label} of townBuildings) {
-    box('#684350',x+5,y+9,w,h);
-    box('#f4c198',x+4,y+22,w-8,h-22);
-    box('#211d38',x-4,y+11,w+8,25);
-    box(roof,x-4,y+10,w+8,20);
-    box(roof,x+7,y,w-14,13);
-    box('#ffffff40',x+8,y+3,w-16,3);
-    box('#705052',x+w/2-12,y+h-26,24,26);
-    box('#ffd473',x+w/2+5,y+h-14,3,3);
-    for (const wx of [x+14,x+w-29]) {
-      box('#40385a',wx,y+42,15,14);
-      box('#ffdd8c',wx+2,y+44,11,10);
-      box('#a76861',wx+6,y+44,2,10);
-    }
-    if (label) {
-      box('#372645',x,y+15,w,14);
-      ctx.fillStyle='#fff0cc';ctx.font='bold 10px monospace';ctx.textAlign='center';
-      ctx.fillText((shopNearby()?.label === label ? 'R · ' : '')+label,x+w/2,y+25);
-      ctx.textAlign='start';
-    }
+  for (let i=0;i<260;i++) box('#966779',(i*73)%938+10,(i*47)%512+12,3+i%15,1);
+  box('#ae7c80',19,151,920,36);
+  box('#ae7c80',158,180,38,310);
+  box('#ae7c80',195,280,730,27);
+  box('#ae7c80',463,182,34,100);
+  box('#946e87',407,215,146,98);
+  for (let y=220;y<313;y+=13) for (let x=411;x<546;x+=19) {
+    box((x+y)%3 ? '#aa8594' : '#866581',x,y,17,11);
+    box('#c3a0a7',x,y,17,1);
   }
-  for (const {x,y,w,h} of townTents) {
-    for (let row=0;row<h;row+=2) {
-      const inset=Math.floor((h-row)*w/(2*h));
-      box(row%4 ? '#edab9e' : '#d37f89',x+inset,y+row,w-2*inset,2);
-    }
-    box('#54354a',x+w/2-8,y+h-19,16,19);
-    box('#ffe0a4',x+w/2,y-9,14,6);
+  for (const building of townBuildings) drawTownHouse(building);
+  for (const [index,tent] of townTents.entries()) drawTownTent(tent,index);
+  for (const [x,y] of [[210,145],[351,142],[564,141],[700,143],[398,249],[557,249],[827,375]]) {
+    box('#432d48',x,y-42,4,46);
+    box('#d59676',x-2,y-42,28,3);
+    box('#a96fa1',x+5,y-38,18,25);
+    box('#a96fa1',x+8,y-13,12,4);
+    oval('#534691',x+14,y-27,5,5);
+    box('#89a360',x+13,y-33,4,3);
+    box('#f0aa71',x+5,y-16,18,2);
   }
+  const {x:sx,y:sy,w:sw,h:sh} = townStatue;
+  const center = sx+sw/2;
+  box('#635172',sx-3,sy+sh-10,sw+6,13);
+  box('#ad98a8',sx,sy+sh-16,sw,10);
+  box('#746982',sx+8,sy+sh-27,sw-16,12);
+  box('#c6b8c3',sx+8,sy+sh-27,sw-16,3);
+  oval('#584d70',center,sy+13,22,18);
+  oval('#a6a1bb',center,sy+11,19,16);
+  box('#d8cbd3',center-12,sy+2,10,4);
+  box('#645d7e',center-8,sy+11,3,4);
+  box('#645d7e',center+5,sy+11,3,4);
+  box('#76708c',center-9,sy-10,10,7);
+  box('#b3abbf',center,sy-14,9,8);
+  box('#dac397',center-10,sy+sh-24,20,6);
   box('#432842',28,199,185,23);
   ctx.font='bold 14px monospace';ctx.fillStyle='#ffe5a5';ctx.fillText('BLUEBERRY TOWN',46,215);
   drawLadder(ladderX,478,43);
