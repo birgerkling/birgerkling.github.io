@@ -77,7 +77,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 <dialog id="berry-dialog" aria-labelledby="berry-title"><h2 id="berry-title">Berryngton Bluu</h2><p>God dag, Bloo! Vill du hjälpa byn?</p><div id="berry-quests"></div><form method="dialog"><button>Stäng</button></form></dialog>
 <dialog id="shop" aria-labelledby="shop-title">
   <h2 id="shop-title">🫐 Blåbärsbutiken</h2>
-  <p id="shop-message" aria-live="polite">Hej Bloo! Vad vill du köpa?</p>
+  <p id="shop-countdown"></p><p id="shop-message" aria-live="polite">Hej Bloo! Vad vill du köpa?</p>
   <div class="shop-actions">
     <div class="shop-stock"><button data-buy="bow">Bow · 12 Seeds<small>6 skada per pil · 1 sekund mellan skotten</small></button><button data-buy="steel">Steel Sword · 16 Seeds<small>12 skada</small></button><button data-buy="axe">Battle Axe · 30 Seeds<small>25 skada · Efter Onion Lord</small></button><button data-buy="morning">Morning Star · 45 Seeds<small>30 skada · Efter Mega Muffin</small></button><button data-buy="daggers">Twin Daggers · 60 Seeds<small>Två hugg med 12 skada vardera · Efter pastabossen</small></button><button data-buy="iron">Iron Shield · 14 Seeds<small>80 % skydd</small></button><button data-buy="tower">Tower Shield · 28 Seeds<small>80 % skydd · Efter Onion Lord</small></button><button data-buy="spiked">Spiked Shield · 45 Seeds<small>70 % skydd · 30 % tillbaka till angriparen · Efter Mega Muffin</small></button><button data-buy="platinum">Platinum Shield · 65 Seeds<small>100 % skydd · Efter pastabossen</small></button><button data-buy="leatherUpper">Läderjacka · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="leatherLower">Läderbyxor · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="chainUpper">Ringbrynje · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="chainLower">Ringbrynjebyxor · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="ironUpper">Järnplåt · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="ironLower">Järnbyxor · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="platinumUpper">Platinumrustning · 55 Seeds<small>35 % skadereducering · Efter Spaghetti Titan</small></button><button data-buy="platinumLower">Platinumbyxor · 55 Seeds<small>35 % skadereducering · Efter Spaghetti Titan</small></button><button data-buy="potion">Healing Potion · 5 Seeds<small>Återställer upp till 30 HP</small></button><button data-buy="speedPotion">Speed Potion · 7 Seeds<small>+50 % fart i 8 sekunder</small></button></div>
     <form method="dialog"><button>Stäng</button></form>
@@ -182,9 +182,9 @@ const pointers = new Map();
 const valid = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyE','KeyF']);
 const townScale = 2;
 const townBuildings = [
-  {x:56,y:58,w:130,h:70,label:'ARMOR SHOP',roof:'#6265ad',slots:['upper','lower']},
-  {x:380,y:58,w:146,h:70,label:'MYSTICAL SHOP',roof:'#8d51a4',slots:['gadget','potion']},
-  {x:720,y:58,w:142,h:70,label:'COMBAT SHOP',roof:'#ab5a63',slots:['weapon','shield']},
+  {x:56,y:58,w:130,h:70,label:'ARMOR SHOP',restockSecond:0,roof:'#6265ad',slots:['upper','lower']},
+  {x:380,y:58,w:146,h:70,label:'MYSTICAL SHOP',restockSecond:20,roof:'#8d51a4',slots:['gadget','potion']},
+  {x:720,y:58,w:142,h:70,label:'COMBAT SHOP',restockSecond:40,roof:'#ab5a63',slots:['weapon','shield']},
   {x:295,y:333,w:98,h:62,roof:'#526a9e'},
   {x:695,y:353,w:104,h:61,roof:'#42528e'},
   {x:229,y:45,w:103,h:80,roof:'#434f9b'},
@@ -495,14 +495,41 @@ function weaponUnlocked(id) {
 function canBuy(id) {
   return weaponUnlocked(id) && seeds >= catalog[id].cost && !owned.includes(id) && !bagFull();
 }
-function refreshShop() {
-  const slots = shopNearby()?.slots;
+const shopCountdown = document.querySelector('#shop-countdown');
+let displayedStockCycle = null;
+function shopStockCycle(building,now) {
+  return Math.floor((now-building.restockSecond*1000)/60000);
+}
+function availableShopItems(building,cycle) {
+  const ids = [...stock].map(button=>button.dataset.buy);
+  const limit = building.restockSecond === 20 ? 1 : 2;
+  return building.slots.flatMap(slot => {
+    const eligible = ids.filter(id => catalog[id].slot === slot && weaponUnlocked(id));
+    if (eligible.length <= limit) return eligible;
+    const start = ((cycle % eligible.length)+eligible.length)%eligible.length;
+    return Array.from({length:limit},(_,index)=>eligible[(start+index)%eligible.length]);
+  });
+}
+function refreshShop(building = shopNearby(), now = Date.now()) {
+  if (!building) return;
+  displayedStockCycle = shopStockCycle(building,now);
+  const available = availableShopItems(building,displayedStockCycle);
   for (const button of stock) {
     const id = button.dataset.buy;
-    button.hidden = !!slots && !slots.includes(catalog[id].slot);
+    button.hidden = !available.includes(id);
     button.disabled = button.hidden || !canBuy(id);
-    button.title = !weaponUnlocked(id) ? catalog[id].gate : owned.includes(id) ? 'Redan köpt' : bagFull() ? 'Items är fullt' : '';
+    button.title = owned.includes(id) ? 'Redan ägd' : bagFull() ? 'Items är fullt' : seeds < catalog[id].cost ? 'För få Seeds' : '';
   }
+}
+function updateShopClock() {
+  const building = shopNearby();
+  if (!building) return;
+  const now = Date.now();
+  const cycle = shopStockCycle(building,now);
+  if (displayedStockCycle !== cycle) refreshShop(building,now);
+  const nextRestock = (cycle+1)*60000+building.restockSecond*1000;
+  const label = 'Nytt sortiment om '+Math.ceil((nextRestock-now)/1000)+' s';
+  if (shopCountdown.textContent !== label) shopCountdown.textContent = label;
 }
 function openShop() {
   if (!shopNearby() || shop.open) return;
@@ -510,13 +537,20 @@ function openShop() {
   document.querySelector('#shop-title').textContent = shopNearby().label ?? '🫐 Blåbärsbutiken';
   shopMessage.textContent = 'Du har ' + seeds + ' Seeds. Items: ' + storedItems().length + '/' + itemSlots.length + '.';
   refreshShop();
+  updateShopClock();
   shop.showModal();
 }
 shopOpen.addEventListener('click',openShop);
 shop.addEventListener('close',clearInputs);
 for (const button of stock) button.addEventListener('click', () => {
   const id = button.dataset.buy;
-  if (!shop.open || !shopNearby() || button.hidden || !canBuy(id)) return;
+  const building = shopNearby();
+  if (!shop.open || !building || !canBuy(id)) return;
+  const cycle = shopStockCycle(building,Date.now());
+  if (!availableShopItems(building,cycle).includes(id)) {
+    updateShopClock();
+    return;
+  }
   const item = catalog[id];
   seeds -= item.cost;
   if (isPotion(id)) storedPotions.push(id);
@@ -2346,6 +2380,7 @@ function frame(now) {
   const dt=last ? Math.min((now-last)/1000,.04) : 0;
   last=now;
   update(dt);
+  if (shop.open) updateShopClock();
   berryTalk.hidden = !berryNearby();
   chestButton.hidden = !nearbyChest();
   draw();
