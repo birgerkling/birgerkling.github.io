@@ -141,14 +141,6 @@ const chests = [
   {id:'muffin-wood-key',area:'muffin',x:295,y:96,seeds:0,keyTier:2,afterMuffin:true},
   {id:'titan-steel-key',area:'titan',x:240,y:102,seeds:0,keyTier:3,afterPasta:true},
   ...pantryLoot.map(([x,y],i)=>({id:'pantry-'+i,area:'pantry',x:x*3,y:y*3,seeds:35+i*10,item:['potion','speedPotion','potion','speedPotion','potion'][i]})),
-  {id:'onion-chain-upper',area:'boss',x:165,y:57,seeds:0,item:'chainUpper',golden:true},
-  {id:'onion-chain-lower',area:'boss',x:315,y:57,seeds:0,item:'chainLower',golden:true},
-  {id:'muffin-iron-upper',area:'muffin',x:310,y:53,seeds:0,item:'ironUpper',afterMuffin:true},
-  {id:'muffin-iron-lower',area:'muffin',x:365,y:53,seeds:0,item:'ironLower',afterMuffin:true},
-  {id:'pasta-platinum-upper',area:'titan',x:214,y:61,seeds:0,item:'platinumUpper',afterPasta:true,duplicateSeeds:0},
-  {id:'pasta-platinum-lower',area:'titan',x:266,y:61,seeds:0,item:'platinumLower',afterPasta:true,duplicateSeeds:0},
-  {id:'muffin-spiked-shield',area:'muffin',x:180,y:54,seeds:0,item:'spiked',afterMuffin:true},
-  {id:'muffin-morning-star',area:'muffin',x:240,y:49,seeds:0,item:'morning',afterMuffin:true},
   {id:'oven-entry',area:'oven',x:249*ovenScale,y:151*ovenScale,seeds:13,item:'potion'},
   {id:'oven-left',area:'oven',x:48*ovenScale,y:62*ovenScale,seeds:23,item:'speedPotion'},
   {id:'oven-middle',area:'oven',x:336*ovenScale,y:205*ovenScale,seeds:18,item:'potion'},
@@ -422,7 +414,7 @@ function restoreProgress(saved) {
   storedPotions = [];
   openedChests.clear();
   if (Array.isArray(saved?.openedChests)) {
-    for (const chest of chests) if (saved.openedChests.includes(chest.id)) openedChests.add(chest.id);
+    for (const id of saved.openedChests) if (typeof id === 'string') openedChests.add(id);
   }
   templeKeyTier = 0;
   if (Number.isInteger(saved?.templeKeyTier) && templeKeyNames[saved.templeKeyTier]) {
@@ -1747,7 +1739,7 @@ function damageTitan(damage,whip) {
     titan.volleyLeft=0;
     titan.clock=1.15;
   }
-  if(!titan.hp) { pastaDefeated=true; titan.balls=[]; saveGame(); say('Spaghetti Titan är besegrad! Platinumkistorna finns längst upp i rummet.'); }
+  if(!titan.hp) { pastaDefeated=true; titan.balls=[]; saveGame(); say('Spaghetti Titan är besegrad! Hämta Diamond Key i kistan.'); }
 }
 function launchTitanMeatball(offset) {
   const angle=titan.angle+offset;
@@ -2104,7 +2096,7 @@ function drawEnemies() {
   for (const chest of chests) {
     if (chest.area !== area) continue;
     const {x,y} = chest;
-    if ((chest.afterMuffin && !muffinDefeated) || (chest.afterPasta && !pastaDefeated)) continue;
+    if ((chest.golden && onion?.hp !== 0) || (chest.afterMuffin && !muffinDefeated) || (chest.afterPasta && !pastaDefeated)) continue;
     const opened = openedChests.has(chest.id);
     box('#3f2a38',x-13,y-8,26,19);
     box(chest.golden ? '#bd842c' : '#9d5d42',x-11,y-1,22,10);
