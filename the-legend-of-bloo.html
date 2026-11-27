@@ -86,7 +86,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
   </div>
   <form method="dialog"><button>Stäng</button></form>
 </dialog>
-<dialog id="berry-dialog" aria-labelledby="berry-title"><h2 id="berry-title">Berryngton Bluu</h2><p>God dag, Bloo! Vill du hjälpa byn?</p><div id="berry-quests"></div><form method="dialog"><button>Stäng</button></form></dialog>
+<dialog id="berry-dialog" aria-labelledby="berry-title"><h2 id="berry-title">Berryngton Bluu</h2><p id="berry-line" aria-live="polite"></p><button type="button" id="berry-listen" hidden>Lyssna</button><div id="berry-quests"></div><form method="dialog"><button>Stäng</button></form></dialog>
 <dialog id="shop" aria-labelledby="shop-title">
   <h2 id="shop-title">🫐 Blåbärsbutiken</h2>
   <p id="shop-countdown"></p><p id="shop-empty" hidden>Inga varor i det här sortimentet.</p><p id="shop-message" aria-live="polite">Hej Bloo! Vad vill du köpa?</p>
@@ -297,6 +297,7 @@ function renderBerryQuests() {
       } else if (berryQuestStates[quest.id] === 'active' && quest.progress() >= quest.target) {
         berryQuestStates[quest.id] = 'claimed';
         awardSeeds(quest.reward);
+        selectBerryLine();
       }
       renderBerryQuests();
       berryQuestList.children[berryQuests.indexOf(quest)].querySelector('button:not(:disabled)')?.focus();
@@ -309,10 +310,38 @@ function berryNearby() {
   return area === 'counter' && !climb && bloo.hp > 0 &&
     Math.hypot(bloo.x-660,bloo.y-317) < 54;
 }
+const berryLine = document.querySelector('#berry-line');
+const berryListen = document.querySelector('#berry-listen');
+const berryVoices = {
+  welcome:['God dag, Bloo! Har du tid att hjälpa ett gammalt blåbär?', 'Slå dig ner en stund. Piñatan har redan fått nog för i dag.', 'När jag var ung kändes köksgolvet som en hel kontinent. Det gör det visst fortfarande.'],
+  active:['Ta det i din egen takt, Bloo. Jag står kvar här vid ståndet.', 'Hör du något rulla där nere? Då är det nog ärtorna igen.'],
+  ready:['Där är du ju! Jag har lagt undan din belöning.', 'Bra gjort, Bloo. Kom och hämta dina Seeds innan jag glömmer var jag lade dem.'],
+  done:['Hela byn har hört vad du gjorde. Tack, Bloo!', 'Alla uppdrag klara! Nu tycker jag att vi tar en välförtjänt paus.']
+};
+let berryVisit = 0;
+function selectBerryLine() {
+  const ready = berryQuests.some(quest=>berryQuestStates[quest.id] === 'active' && quest.progress() >= quest.target);
+  const done = berryQuests.every(quest=>berryQuestStates[quest.id] === 'claimed');
+  const active = berryQuests.some(quest=>berryQuestStates[quest.id] === 'active');
+  const lines = berryVoices[ready ? 'ready' : done ? 'done' : active ? 'active' : 'welcome'];
+  berryLine.textContent = lines[berryVisit++ % lines.length];
+}
+if ('speechSynthesis' in window && 'SpeechSynthesisUtterance' in window) {
+  berryListen.hidden = false;
+  berryListen.addEventListener('click',()=>{
+    const line = new SpeechSynthesisUtterance(berryLine.textContent);
+    line.lang = 'sv-SE';
+    line.rate = .9;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(line);
+  });
+  berryDialog.addEventListener('close',()=>window.speechSynthesis.cancel());
+}
 function talkToBerryngton() {
   if (!berryNearby() || berryDialog.open || shop.open || inventory.open || accounts.open || prologue.open) return;
   clearInputs();
   renderBerryQuests();
+  selectBerryLine();
   berryDialog.showModal();
 }
 berryTalk.addEventListener('click',talkToBerryngton);
