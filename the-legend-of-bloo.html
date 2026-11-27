@@ -592,13 +592,9 @@ window.addEventListener('resize',()=>{if (shop.open) refreshShop();});
 function shopStockCycle(building,now) {
   return Math.floor((now-building.restockSecond*1000)/60000);
 }
+const shopRarityChances = {Common:.80,Uncommon:.60,Rare:.40,Epic:.20,Legendary:.15};
 function shopItemChance(id) {
-  const {set,gate} = catalog[id];
-  if (set === 'platinum' || id === 'platinum') return .15;
-  if (gate === 'Efter pastabossen') return .30;
-  if (gate === 'Efter Mega Muffin') return .45;
-  if (gate === 'Efter Onion Lord') return .65;
-  return .85;
+  return shopRarityChances[itemRarities[id]] ?? 0;
 }
 function shopItemRoll(id,cycle) {
   let hash = cycle | 0;
