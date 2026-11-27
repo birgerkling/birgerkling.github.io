@@ -60,6 +60,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 </dialog>
 <dialog id="inventory" aria-labelledby="inventory-title">
   <h2 id="inventory-title">Inventory</h2>
+  <button id="claim-slingshot" type="button" hidden>Hämta Slingshot gratis</button>
   <div id="discard-confirm" hidden>
     <p id="discard-message"></p>
     <button type="button" id="discard-yes">Ja, ta bort</button>
@@ -356,8 +357,8 @@ let storedPotions = [];
 const isPotion = id => Object.hasOwn(catalog,id) && catalog[id].slot === 'potion';
 const restorePotion = id => id === true ? 'potion' : isPotion(id) ? id : false;
 let starterSlingshotGranted = false;
-function grantStarterSlingshot() {
-  if (starterSlingshotGranted) return;
+function grantStarterSlingshot(recover = false) {
+  if (starterSlingshotGranted && !recover) return;
   if (!owned.includes('slingshot')) {
     if (equipped.gadget && bagFull()) return;
     owned.push('slingshot');
@@ -814,8 +815,19 @@ function discardButton(id) {
   });
   return button;
 }
+const claimSlingshot = document.querySelector('#claim-slingshot');
+claimSlingshot.addEventListener('click', () => {
+  if (!inventory.open || owned.includes('slingshot')) return;
+  grantStarterSlingshot(true);
+  saveSeeds();
+  renderInventory();
+  if (owned.includes('slingshot')) inventory.querySelector('#gear-gadget button, .item-slots button')?.focus();
+});
 function renderInventory() {
   cancelDiscard();
+  claimSlingshot.hidden = owned.includes('slingshot');
+  claimSlingshot.disabled = !!equipped.gadget && bagFull();
+  claimSlingshot.title = claimSlingshot.disabled ? 'Frigör en plats i Items först' : '';
   const activeSlots = {weapon:'Tree Sword',shield:'Wooden Shield',upper:'Upper · —',lower:'Lower · —',gadget:'—'};
   const bag = storedItems();
   for (const [slot,fallback] of Object.entries(activeSlots)) {
