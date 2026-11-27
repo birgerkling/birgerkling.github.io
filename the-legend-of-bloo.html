@@ -79,7 +79,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
   <h2 id="shop-title">🫐 Blåbärsbutiken</h2>
   <p id="shop-countdown"></p><p id="shop-empty" hidden>Inga varor i det här sortimentet.</p><p id="shop-message" aria-live="polite">Hej Bloo! Vad vill du köpa?</p>
   <div class="shop-actions">
-    <div class="shop-stock"><button data-buy="bow">Bow · 12 Seeds<small>6 skada per pil · 1 sekund mellan skotten</small></button><button data-buy="steel">Steel Sword · 16 Seeds<small>12 skada</small></button><button data-buy="axe">Battle Axe · 30 Seeds<small>25 skada · Efter Onion Lord</small></button><button data-buy="morning">Morning Star · 45 Seeds<small>30 skada · Efter Mega Muffin</small></button><button data-buy="daggers">Twin Daggers · 60 Seeds<small>Två hugg med 12 skada vardera · Efter pastabossen</small></button><button data-buy="iron">Iron Shield · 14 Seeds<small>80 % skydd</small></button><button data-buy="tower">Tower Shield · 28 Seeds<small>80 % skydd · Efter Onion Lord</small></button><button data-buy="spiked">Spiked Shield · 45 Seeds<small>70 % skydd · 30 % tillbaka till angriparen · Efter Mega Muffin</small></button><button data-buy="platinum">Platinum Shield · 65 Seeds<small>100 % skydd · Efter pastabossen</small></button><button data-buy="leatherUpper">Läderjacka · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="leatherLower">Läderbyxor · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="chainUpper">Ringbrynje · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="chainLower">Ringbrynjebyxor · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="ironUpper">Järnplåt · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="ironLower">Järnbyxor · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="platinumUpper">Platinumrustning · 55 Seeds<small>35 % skadereducering · Efter Spaghetti Titan</small></button><button data-buy="platinumLower">Platinumbyxor · 55 Seeds<small>35 % skadereducering · Efter Spaghetti Titan</small></button><button data-buy="potion">Healing Potion · 5 Seeds<small>Återställer upp till 30 HP</small></button><button data-buy="speedPotion">Speed Potion · 7 Seeds<small>+50 % fart i 8 sekunder</small></button></div>
+    <div class="shop-stock"><button data-buy="bow">Bow · 12 Seeds<small>6 skada per pil · 1 sekund mellan skotten</small></button><button data-buy="steel">Steel Sword · 16 Seeds<small>12 skada</small></button><button data-buy="axe">Battle Axe · 30 Seeds<small>25 skada · Efter Onion Lord</small></button><button data-buy="morning">Morning Star · 45 Seeds<small>30 skada · Efter Mega Muffin</small></button><button data-buy="daggers">Twin Daggers · 60 Seeds<small>Två hugg med 12 skada vardera · Efter pastabossen</small></button><button data-buy="iron">Iron Shield · 14 Seeds<small>80 % skydd</small></button><button data-buy="tower">Tower Shield · 28 Seeds<small>80 % skydd · Efter Onion Lord</small></button><button data-buy="spiked">Spiked Shield · 45 Seeds<small>70 % skydd · 30 % tillbaka till angriparen · Efter Mega Muffin</small></button><button data-buy="platinum">Platinum Shield · 65 Seeds<small>100 % skydd · Efter pastabossen</small></button><button data-buy="leatherUpper">Leather Armor · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="leatherLower">Leather Pants · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="chainUpper">Chainmail Armor · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="chainLower">Chainmail Pants · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="ironUpper">Iron Armor · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="ironLower">Iron Pants · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="platinumUpper">Platinum Armor · 55 Seeds<small>35 % skadereducering · Efter Spaghetti Titan</small></button><button data-buy="platinumLower">Platinum Pants · 55 Seeds<small>35 % skadereducering · Efter Spaghetti Titan</small></button><button data-buy="potion">Small Healing Potion · 15 Seeds<small>Återställer upp till 20 HP</small></button><button data-buy="speedPotion">Speed Potion · 7 Seeds<small>+50 % fart i 8 sekunder</small></button></div>
     <form method="dialog"><button>Stäng</button></form>
   </div>
 </dialog>
@@ -143,16 +143,37 @@ const chests = [
   {id:'fridge-corner',area:'fridge',x:438*fridgeScale,y:206*fridgeScale,seeds:12,item:'steel'}
 ];
 const openedChests = new Set();
-const armorSets = {"leather":{"names":["Läderjacka","Läderbyxor"],"cost":10,"one":[10,10,0,0],"pair":[25,25,0,0],"colors":["#4e2930","#945838","#dc935b"]},"chain":{"names":["Ringbrynje","Ringbrynjebyxor"],"cost":24,"one":[15,15,10,0],"pair":[30,30,30,0],"colors":["#30334c","#707899","#d1dcf3"]},"iron":{"names":["Järnplåt","Järnbyxor"],"cost":38,"one":[20,25,0,0],"pair":[40,55,0,0],"colors":["#393449","#969fbc","#eff5ff"]},"platinum":{"names":["Platinumrustning","Platinumbyxor"],"cost":0,"one":[35,35,0,10],"pair":[60,60,0,25],"colors":["#23437a","#99baec","#8ff2ff"]}};
+const armorSets = {"leather":{"names":["Leather Armor","Leather Pants"],"cost":10,"one":[10,10,0,0],"pair":[25,25,0,0],"colors":["#4e2930","#945838","#dc935b"]},"chain":{"names":["Chainmail Armor","Chainmail Pants"],"cost":24,"one":[15,15,10,0],"pair":[30,30,30,0],"colors":["#30334c","#707899","#d1dcf3"]},"iron":{"names":["Iron Armor","Iron Pants"],"cost":38,"one":[20,25,0,0],"pair":[40,55,0,0],"colors":["#393449","#969fbc","#eff5ff"]},"platinum":{"names":["Platinum Armor","Platinum Pants"],"cost":0,"one":[35,35,0,10],"pair":[60,60,0,25],"colors":["#23437a","#99baec","#8ff2ff"]}};
+Object.assign(armorSets,{
+  assassin:{one:[5,5,25,0],colors:['#38204f','#734a9d','#ca93ee']},
+  magnetic:{one:[15,15,0,0],colors:['#343149','#8293b0','#d0deef']},
+  berserker:{one:[20,20,0,0],colors:['#4c253c','#9e4c58','#e3a36e']}
+});
 const catalog = {
-  leatherUpper: {"name":"Läderjacka","slot":"upper","cost":10,"set":"leather","detail":"10 % skadereducering"},
-  leatherLower: {"name":"Läderbyxor","slot":"lower","cost":10,"set":"leather","detail":"10 % skadereducering"},
-  chainUpper: {"name":"Ringbrynje","slot":"upper","cost":24,"set":"chain","gate":"Efter Onion Lord","detail":"15 % skadereducering · +10 % fart"},
-  chainLower: {"name":"Ringbrynjebyxor","slot":"lower","cost":24,"set":"chain","gate":"Efter Onion Lord","detail":"15 % skadereducering · +10 % fart"},
-  ironUpper: {"name":"Järnplåt","slot":"upper","cost":38,"set":"iron","gate":"Efter Mega Muffin","detail":"20 % skadereducering · 25 % mot närstrid"},
-  ironLower: {"name":"Järnbyxor","slot":"lower","cost":38,"set":"iron","gate":"Efter Mega Muffin","detail":"20 % skadereducering · 25 % mot närstrid"},
-  platinumUpper: {"name":"Platinumrustning","slot":"upper","cost":55,"set":"platinum","gate":"Efter pastabossen","detail":"35 % skadereducering · 10 % chans att hela 5 HP"},
-  platinumLower: {"name":"Platinumbyxor","slot":"lower","cost":55,"set":"platinum","gate":"Efter pastabossen","detail":"35 % skadereducering · 10 % chans att hela 5 HP"},
+  tree: {"name":"Tree Sword","slot":"weapon","power":5},
+  wooden: {"name":"Wooden Shield","slot":"shield","block":0.6,"angle":35},
+  slingshot: {"name":"Slingshot","slot":"gadget","power":2,"cooldown":0.5},
+  assassin: {"name":"Assassin's Chest","slot":"upper","cost":80,"set":"assassin"},
+  magnetic: {"name":"Magnetic Boots","slot":"lower","cost":60,"set":"magnetic"},
+  boomerang: {"name":"Boomerang","slot":"gadget","power":10,"cost":35},
+  mediumPotion: {"name":"Medium Healing Potion","slot":"potion","power":35,"cost":30},
+  poison: {"name":"Poison Dagger","slot":"weapon","power":10,"delay":1,"cost":55},
+  berserker: {"name":"Berserker Armor","slot":"upper","cost":90,"set":"berserker"},
+  staff: {"name":"Magic Staff","slot":"gadget","power":20,"cooldown":1,"cost":65},
+  bigPotion: {"name":"Big Healing Potion","slot":"potion","power":60,"cost":50},
+  vampire: {"name":"Vampire Blade","slot":"weapon","power":25,"delay":1.5,"cost":100},
+  explosive: {"name":"Explosive Shield","slot":"shield","cost":70},
+  teleport: {"name":"Teleport Orb","slot":"gadget","cooldown":5,"cost":85},
+  medKit: {"name":"Med Kit","slot":"potion","cost":150},
+
+  leatherUpper: {"name":"Leather Armor","slot":"upper","cost":10,"set":"leather","detail":"10 % skadereducering"},
+  leatherLower: {"name":"Leather Pants","slot":"lower","cost":10,"set":"leather","detail":"10 % skadereducering"},
+  chainUpper: {"name":"Chainmail Armor","slot":"upper","cost":24,"set":"chain","gate":"Efter Onion Lord","detail":"15 % skadereducering · +10 % fart"},
+  chainLower: {"name":"Chainmail Pants","slot":"lower","cost":24,"set":"chain","gate":"Efter Onion Lord","detail":"15 % skadereducering · +10 % fart"},
+  ironUpper: {"name":"Iron Armor","slot":"upper","cost":38,"set":"iron","gate":"Efter Mega Muffin","detail":"20 % skadereducering · 25 % mot närstrid"},
+  ironLower: {"name":"Iron Pants","slot":"lower","cost":38,"set":"iron","gate":"Efter Mega Muffin","detail":"20 % skadereducering · 25 % mot närstrid"},
+  platinumUpper: {"name":"Platinum Armor","slot":"upper","cost":55,"set":"platinum","gate":"Efter pastabossen","detail":"35 % skadereducering · 10 % chans att hela 5 HP"},
+  platinumLower: {"name":"Platinum Pants","slot":"lower","cost":55,"set":"platinum","gate":"Efter pastabossen","detail":"35 % skadereducering · 10 % chans att hela 5 HP"},
   onionTears: {name:'ONION Tears',slot:'gadget',cost:0,detail:'Mellanslag kastar en lök som förvirrar fiender nära nedslaget i 4 sekunder'},
   bow: {name:'Bow',slot:'gadget',cost:12,power:6,detail:'Mellanslag skjuter en pil mot musen'},
   steel: {"name":"Steel Sword","cost":16,"power":12,"delay":0.36,"gate":"","slot":"weapon","detail":"12 skada"},
@@ -165,14 +186,25 @@ const catalog = {
   platinum: {"name":"Platinum Shield","cost":65,"block":1,"angle":180,"gate":"Efter pastabossen","slot":"shield","detail":"100 % skydd · 360°"},
   speedPotion: {name:'Speed Potion',slot:'potion',cost:7,power:1.5,duration:8,detail:'+50 % fart i 8 sekunder'},
   "potion": {
-    "name": "Healing Potion",
+    "name": "Small Healing Potion",
     "slot": "potion",
-    "cost": 5,
-    "power": 30,
-    "detail": "Återställer upp till 30 HP"
+    "cost": 15,
+    "power": 20,
+    "detail": "Återställer upp till 20 HP"
   }
 };
+const itemRarities = {"tree":"Common","wooden":"Common","slingshot":"Common","steel":"Uncommon","iron":"Uncommon","leatherUpper":"Uncommon","leatherLower":"Uncommon","chainUpper":"Uncommon","chainLower":"Uncommon","bow":"Uncommon","potion":"Uncommon","ironUpper":"Rare","ironLower":"Rare","assassin":"Rare","magnetic":"Rare","boomerang":"Rare","speedPotion":"Rare","mediumPotion":"Rare","axe":"Epic","morning":"Epic","poison":"Epic","tower":"Epic","berserker":"Epic","staff":"Epic","bigPotion":"Epic","daggers":"Legendary","vampire":"Legendary","spiked":"Legendary","platinum":"Legendary","explosive":"Legendary","platinumUpper":"Legendary","platinumLower":"Legendary","teleport":"Legendary","medKit":"Legendary"};
+const rarityColors = {Common:'#c4c2cf',Uncommon:'#a2df86',Rare:'#8ac9ff',Epic:'#dca4ff',Legendary:'#ffd36e'};
+function markRarity(element,id) {
+  const rarity = itemRarities[id];
+  element.style.color = rarityColors[rarity] ?? '';
+  if (!rarity) return;
+  const label = document.createElement('small');
+  label.textContent = ' · '+rarity;
+  element.append(label);
+}
 const stock = document.querySelectorAll('[data-buy]');
+for (const button of stock) markRarity(button,button.dataset.buy);
 const itemSlots = document.querySelectorAll('.item-slots .slot');
 const potionSlots = document.querySelectorAll('[data-drink]');
 const storePotionButtons = document.querySelectorAll('[data-store-potion]');
@@ -346,9 +378,13 @@ function restoreProgress(saved) {
   if (Array.isArray(saved?.owned)) {
     owned = [...new Set(saved.owned.map(migrateGear).filter(id => Object.hasOwn(catalog,id) && !isPotion(id)))];
   }
+  if (!saved?.world && !saved?.owned) {
+    owned.push('tree','wooden','slingshot');
+    Object.assign(equipped,{weapon:'tree',shield:'wooden',gadget:'slingshot'});
+  }
   for (const id of owned) {
     const slot = catalog[id].slot;
-    if (migrateGear(saved.equipped?.[slot]) === id) equipped[slot] = id;
+    if (migrateGear(saved?.equipped?.[slot]) === id) equipped[slot] = id;
   }
   if (Array.isArray(saved?.potions)) potions = [restorePotion(saved.potions[0]),restorePotion(saved.potions[1])];
   else if (Number.isInteger(saved?.potions)) potions = [restorePotion(saved.potions >= 1),restorePotion(saved.potions >= 2)];
@@ -475,6 +511,8 @@ function openChest() {
   const loot = [reward ? '+' + reward + ' Seeds' : '',item?.name].filter(Boolean);
   const chestRewards = document.querySelector('#chest-rewards');
   chestRewards.textContent = 'Kista: ' + loot.join(' och ');
+  if (item) markRarity(chestRewards,chest.item);
+  else chestRewards.style.color = '';
   clearTimeout(chestRewards.hideTimer);
   chestRewards.hideTimer = setTimeout(()=>{chestRewards.textContent='';},5500);
   say((chest.golden ? 'GOLDEN CHEST: ' : 'Kista: ') + loot.join(' och ') + '!');
@@ -574,7 +612,7 @@ for (const button of stock) button.addEventListener('click', () => {
 const prologue = document.querySelector('#prologue');
 let illustratedPrologueSeen = false;
 const storyLines = [
-  'A long time ago, in kitchenland, the legendary sugar spice was stolen from the blueberrys.',
+  'A long time ago, in KitchenLand, the legendary sugar spice was stolen from the blueberrys.',
   'King Potato and his crew had taken it to find the fine balance beetween spice and sweet.',
   'The blueberrys was forced to package and flee their way.',
   'Then a brave warrior by the name bloo showed up he was no ordinary blueberry! he was the one who could take back the sugar spice.',
@@ -718,7 +756,8 @@ function equipmentButton(id, onClick, action) {
   const item = catalog[id];
   const button = document.createElement('button');
   button.textContent = item.name;
-  button.title = item.detail;
+  markRarity(button,id);
+  button.title = item.detail ?? '';
   button.setAttribute('aria-label',action + ' ' + item.name);
   button.addEventListener('click',onClick);
   return button;
@@ -813,23 +852,24 @@ function renderInventory() {
   potionSlots.forEach((button,index) => {
     const id = potions[index];
     button.textContent = (index+1) + ' · ' + (id ? catalog[id].name : 'Tom');
-    button.disabled = !id || !bloo.hp || (id === 'potion' && bloo.hp >= maxHP);
+    markRarity(button,id);
+    button.disabled = !id || !bloo.hp || (id !== 'speedPotion' && bloo.hp >= maxHP);
     storePotionButtons[index].hidden = !potions[index];
     storePotionButtons[index].disabled = bagFull();
   });
 }
 function drinkPotion(index) {
   const id = potions[index];
-  if (shop.open || climb || !bloo.hp || !id || (id === 'potion' && bloo.hp >= maxHP)) return;
+  if (shop.open || climb || !bloo.hp || !id || (id !== 'speedPotion' && bloo.hp >= maxHP)) return;
   potions[index] = false;
   if (id === 'speedPotion') bloo.speedBoost = catalog[id].duration;
   else {
-    bloo.hp = Math.min(maxHP,bloo.hp+catalog[id].power);
+    bloo.hp = Math.min(maxHP,id === 'medKit' ? maxHP : bloo.hp+catalog[id].power);
     showHealth();
   }
   saveSeeds();
   renderInventory();
-  say(id === 'speedPotion' ? 'Speed Potion! +50 % fart i 8 sekunder.' : 'Bloo drack en Healing Potion!');
+  say(id === 'speedPotion' ? 'Speed Potion! +50 % fart i 8 sekunder.' : catalog[id].name+' användes!');
 }
 potionSlots.forEach((button,index) => button.addEventListener('click', () => drinkPotion(index)));
 storePotionButtons.forEach((button,index) => button.addEventListener('click', () => {
@@ -890,9 +930,11 @@ function useGadget(pointer = swordPointer) {
   }
   if (bowCooldown > 0) return;
   const aim = swordDirection(pointer);
-  arrows.push({originX:bloo.x,originY:bloo.y,x:bloo.x,y:bloo.y,vx:aim.x*240,vy:aim.y*240,life:1});
-  bowCooldown = 1;
-  say('Bow!');
+  const gadget = catalog[id];
+  if (!['bow','slingshot','staff'].includes(id)) return;
+  arrows.push({originX:bloo.x,originY:bloo.y,x:bloo.x,y:bloo.y,vx:aim.x*240,vy:aim.y*240,life:id === 'staff' ? 1.5 : 1,damage:gadget.power,gadget:id});
+  bowCooldown = gadget.cooldown ?? 1;
+  say(gadget.name+'!');
 }
 bowButton.addEventListener('pointerdown', event => {
   event.preventDefault();
@@ -906,6 +948,7 @@ function damageEnemy(pea,damage) {
   pea.flash = .18;
   if (pea.hp) return 0;
   if (pea.area === 'floor' && berryQuestStates.peas === 'active') berryPeaKills = Math.min(5,berryPeaKills+1);
+  pea.poison = [];
   pea.respawn = pea.bean ? 25 : 10;
   return 1+Math.floor(Math.random()*5);
 }
@@ -926,7 +969,30 @@ function attack(pointer = swordPointer, direction = null) {
   }
   strike(weapon?.power ?? swordDamage,id);
 }
+function weaponHit(target,id,damage) {
+  if (id === 'vampire') {
+    bloo.hp = Math.min(maxHP,bloo.hp+5);
+    showHealth();
+  }
+  if (id === 'poison' && target.hp > 0) {
+    (target.poison ??= []).push({time:1,tick:0,multiplier:damage/catalog.poison.power});
+  }
+}
+function updatePoison(dt,target,applyDamage) {
+  if (!target?.poison?.length || !target.hp) return;
+  const damageTicks = [5,3,1];
+  for (const dose of target.poison) {
+    dose.time -= dt;
+    if (dose.time > 1e-9) continue;
+    applyDamage(damageTicks[dose.tick]*dose.multiplier);
+    dose.tick++;
+    dose.time += 1;
+    if (!target.hp) break;
+  }
+  target.poison = target.hp ? target.poison.filter(dose=>dose.tick < damageTicks.length) : [];
+}
 function strike(damage,id,daggerHand = -1) {
+  if (equipped.upper === 'berserker' && bloo.hp < 40) damage *= 1.3;
   if (id === 'daggers') bloo.daggerHand = daggerHand;
   bloo.swing = id === 'daggers' ? .18 : .27;
   bloo.swingWeapon = id;
@@ -935,6 +1001,7 @@ function strike(damage,id,daggerHand = -1) {
     const distance = Math.hypot(dx,dy);
     if (distance <= 61 && (distance < 5 || dx*bloo.swordAim.x+dy*bloo.swordAim.y > .4*distance)) {
       hitOnion(damage,bloo.x,bloo.y);
+      weaponHit(onion,id,damage);
     }
     return;
   }
@@ -943,13 +1010,20 @@ function strike(damage,id,daggerHand = -1) {
     const dx = 240-bloo.x, dy = 90-bloo.y;
     if (eyes || (Math.hypot(dx,dy) < 85 && dx*bloo.swordAim.x+dy*bloo.swordAim.y > 8)) {
       hitMuffin(damage,eyes);
+      weaponHit(muffin,id,damage);
     }
     return;
   }
   if (area === 'titan' && titan?.hp) {
-    if (titanTips().some(inSwordRange)) damageTitan(damage,true);
-    else if (Math.hypot(titan.x-bloo.x,titan.y-bloo.y)<72 &&
-      (titan.x-bloo.x)*bloo.swordAim.x+(titan.y-bloo.y)*bloo.swordAim.y>0) damageTitan(damage,false);
+    const whip = titanTips().some(inSwordRange);
+    if (whip) {
+      damageTitan(damage,true);
+      weaponHit(titan,id,damage);
+    } else if (Math.hypot(titan.x-bloo.x,titan.y-bloo.y)<72 &&
+      (titan.x-bloo.x)*bloo.swordAim.x+(titan.y-bloo.y)*bloo.swordAim.y>0) {
+      damageTitan(damage,false);
+      weaponHit(titan,id,damage);
+    }
     return;
   }
   let hit = null;
@@ -957,6 +1031,7 @@ function strike(damage,id,daggerHand = -1) {
   for (const pea of enemies) {
     if (pea.area !== area || !pea.hp || !inSwordRange(pea)) continue;
     reward += damageEnemy(pea,damage);
+    weaponHit(pea,id,damage);
     hit = pea;
   }
   if (area === 'counter' && pinata.hp && inSwordRange(pinata)) {
@@ -1318,33 +1393,40 @@ function update(dt) {
     arrow.life -= dt;
     if (!canMove(arrow.x,arrow.y) || arrow.life <= 0) return false;
     if (area === 'counter' && pinata.hp && Math.hypot(pinata.x-arrow.x,pinata.y-arrow.y) < 18) {
-      hitPinata(catalog.bow.power);
+      hitPinata(arrow.damage);
       return false;
     }
     if (area === 'boss' && onion.hp > 0 && Math.hypot(onion.x-arrow.x,onion.y-arrow.y) < 29) {
-      hitOnion(catalog.bow.power,arrow.originX,arrow.originY);
+      hitOnion(arrow.damage,arrow.originX,arrow.originY);
       return false;
     }
     if (area === 'muffin' && muffin.hp) {
       const eyes = muffin.phase === 'beam' && muffinEyes.some(eye => Math.hypot(eye.x-arrow.x,eye.y-arrow.y) < 13);
       if (eyes || Math.hypot(240-arrow.x,90-arrow.y) < (muffin.phase === 'beam' ? 30 : 40)) {
-        hitMuffin(catalog.bow.power,eyes);
+        hitMuffin(arrow.damage,eyes);
         return false;
       }
     }
     if (area === 'titan' && titan?.hp && Math.hypot(titan.x-arrow.x,titan.y-arrow.y)<43) {
-      damageTitan(catalog.bow.power,false);
+      damageTitan(arrow.damage,false);
       return false;
     }
     const pea = enemies.find(target => target.hp && target.area === area &&
       Math.hypot(target.x-arrow.x,target.y-arrow.y) < 15);
     if (!pea) return true;
-    const reward = damageEnemy(pea,catalog.bow.power);
+    const reward = damageEnemy(pea,arrow.damage);
     if (reward) awardSeeds(reward);
-    else say((pea.cookie ? 'Cookie' : pea.egg ? 'Egg' : 'Pea') + ' tog 6 skada!');
+    else say((pea.cookie ? 'Cookie' : pea.egg ? 'Egg' : 'Pea') + ' tog '+arrow.damage+' skada!');
     return false;
   });
   updateOnionThrow(dt);
+  if (area === 'boss') updatePoison(dt,onion,damage=>hitOnion(damage,bloo.x,bloo.y,true));
+  if (area === 'muffin') updatePoison(dt,muffin,damage=>hitMuffin(damage,false,true));
+  if (area === 'titan') updatePoison(dt,titan,damage=>damageTitan(damage/.6,false));
+  for (const enemy of enemies) if (enemy.area === area) updatePoison(dt,enemy,damage=>{
+    const reward = damageEnemy(enemy,damage);
+    if (reward) awardSeeds(reward);
+  });
   if (area === 'boss') updateOnion(dt);
   if (area === 'muffin') updateMuffin(dt);
   if (area === 'titan') updateTitan(dt);
@@ -1714,6 +1796,11 @@ function drawBloo() {
       box(shine,legX+1,legY+1,4,1);
     }
   }
+  if (jacket === 'assassin') {
+    box('#5c327e',x-14,y+1,28,8);
+    box('#647c44',x-9,y-15,18,4);
+    box('#a2b75c',x-3,y-18,9,4);
+  }
   if (jacket) {
     const [edge,base,shine] = armorSets[jacket].colors;
     box(edge,x-12,y+4,24,6);
@@ -1795,8 +1882,8 @@ function drawWeaponSwing(id,swing) {
     return;
   }
   box('#392540',10,-4,20,8);
-  box(id === 'steel' ? '#b1c6ea' : '#b67939',15,-3,14,6);
-  box(id === 'steel' ? '#ffffff' : '#edb768',15,-3,13,2);
+  box(id === 'vampire' ? '#37263e' : id === 'poison' ? '#649d62' : id === 'steel' ? '#b1c6ea' : '#b67939',15,-3,14,6);
+  box(id === 'vampire' ? '#ff5364' : id === 'poison' ? '#b7ee9d' : id === 'steel' ? '#ffffff' : '#edb768',15,-3,13,2);
   box('#d2954d',12,-6,3,12);
 }
 
@@ -1918,7 +2005,7 @@ function drawEnemies() {
     }
     if (nearby === chest) {
       box('#362638',x-8,y-(chest.golden ? 37 : 26),16,14);
-      ctx.fillStyle = '#fff1a6';
+      ctx.fillStyle = rarityColors[itemRarities[chest.item]] ?? '#fff1a6';
       ctx.font = 'bold 10px monospace';
       ctx.fillText('T',x-3,y-(chest.golden ? 26 : 15));
     }
@@ -1927,8 +2014,16 @@ function drawEnemies() {
     ctx.save();
     ctx.translate(Math.round(arrow.x),Math.round(arrow.y));
     ctx.rotate(Math.atan2(arrow.vy,arrow.vx));
-    box('#e3b075',-11,-1,12,2);
-    box('#f3e9cf',0,-2,4,4);
+    if (arrow.gadget === 'slingshot') {
+      box('#514860',-3,-3,6,6);
+      box('#c7b8c4',-2,-2,3,2);
+    } else if (arrow.gadget === 'staff') {
+      oval('#9b4bdf',0,0,7,7);
+      box('#efd0ff',-3,-3,5,5);
+    } else {
+      box('#e3b075',-11,-1,12,2);
+      box('#f3e9cf',0,-2,4,4);
+    }
     ctx.restore();
   }
   for (const pea of enemies) {
