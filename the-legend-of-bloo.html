@@ -169,7 +169,7 @@ const catalog = {
   magnetic: {"name":"Magnetic Boots","slot":"lower","cost":60,"set":"magnetic"},
   boomerang: {"name":"Boomerang","slot":"gadget","power":10,"cost":35},
   mediumPotion: {"name":"Medium Healing Potion","slot":"potion","power":35,"cost":30},
-  poison: {"name":"Poison Dagger","slot":"weapon","power":10,"delay":1,"cost":55},
+  poison: {"name":"Poison Dagger","slot":"weapon","power":15,"delay":1,"cost":55},
   berserker: {"name":"Berserker Armor","slot":"upper","cost":90,"set":"berserker"},
   staff: {"name":"Magic Staff","slot":"gadget","power":20,"cooldown":1,"cost":65},
   bigPotion: {"name":"Big Healing Potion","slot":"potion","power":60,"cost":50},
@@ -1114,7 +1114,7 @@ function weaponHit(target,id,damage) {
 }
 function updatePoison(dt,target,applyDamage) {
   if (!target?.poison?.length || !target.hp) return;
-  const damageTicks = [5,3,1];
+  const damageTicks = [10,5,3,1];
   for (const dose of target.poison) {
     dose.time -= dt;
     if (dose.time > 1e-9) continue;
