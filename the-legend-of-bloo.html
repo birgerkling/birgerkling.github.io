@@ -153,7 +153,7 @@ const chests = [
   {id:'oven-left',area:'oven',x:48*ovenScale,y:62*ovenScale,seeds:23,item:'speedPotion'},
   {id:'oven-middle',area:'oven',x:336*ovenScale,y:205*ovenScale,seeds:18,item:'potion'},
   {id:'oven-far',area:'oven',x:419*ovenScale,y:212*ovenScale,seeds:25,item:'steel'},
-  {id:'onion-golden',area:'boss',x:240,y:42,seeds:0,item:'onionTears',keyTier:1,golden:true},
+  {id:'onion-golden',area:'boss',x:240,y:42,seeds:0,keyTier:1,golden:true},
   {id:'fridge-left',area:'fridge',x:53*fridgeScale,y:67*fridgeScale,seeds:7,item:'potion'},
   {id:'fridge-top',area:'fridge',x:250*fridgeScale,y:55*fridgeScale,seeds:8,item:'bow'},
   {id:'fridge-shelf',area:'fridge',x:350*fridgeScale,y:120*fridgeScale,seeds:10,item:'speedPotion'},
@@ -191,7 +191,6 @@ const catalog = {
   ironLower: {"name":"Iron Pants","slot":"lower","cost":38,"set":"iron","gate":"Efter Mega Muffin","detail":"20 % skadereducering · 25 % mot närstrid"},
   platinumUpper: {"name":"Platinum Armor","slot":"upper","cost":55,"set":"platinum","gate":"Efter pastabossen","detail":"35 % skadereducering · 10 % chans att hela 5 HP"},
   platinumLower: {"name":"Platinum Pants","slot":"lower","cost":55,"set":"platinum","gate":"Efter pastabossen","detail":"35 % skadereducering · 10 % chans att hela 5 HP"},
-  onionTears: {name:'ONION Tears',slot:'gadget',cost:0,detail:'Mellanslag kastar en lök som förvirrar fiender nära nedslaget i 4 sekunder'},
   bow: {name:'Bow',slot:'gadget',cost:12,power:6,detail:'Mellanslag skjuter en pil mot musen'},
   steel: {"name":"Steel Sword","cost":16,"power":10,"delay":0.36,"gate":"","slot":"weapon","detail":"10 skada"},
   axe: {"name":"Battle Axe","cost":30,"power":22,"delay":0.54,"gate":"Efter Onion Lord","slot":"weapon","detail":"22 skada"},
@@ -460,9 +459,6 @@ function showSeeds() {
 }
 let arrows = [];
 let bowCooldown = 0;
-let onionThrow = null;
-let tearCloud = null;
-let tearsCooldown = 0;
 let bloo, enemies, shots, area, climb, last = 0;
 
 function say(message) { if (status.textContent !== message) status.textContent = message; }
@@ -476,9 +472,6 @@ function reset() {
   shots = [];
   arrows = [];
   bowCooldown = 0;
-  onionThrow = null;
-  tearCloud = null;
-  tearsCooldown = 0;
   enemies = enemySpawns.map((spawn,index) => ({...spawn,maxHP:spawn.bean ? beanMaxHP : spawn.cookie ? 100 : spawn.egg ? 50 : 20,hp:spawn.bean ? beanMaxHP : spawn.cookie ? 100 : spawn.egg ? 50 : 20,homeX:spawn.x,homeY:spawn.y,cooldown:.6+index%3*.35,flash:0}));
   bloo.hp = maxHP;
   bloo.speedBoost = 0;
@@ -751,7 +744,7 @@ function saveGame() {
     world:{area,bloo:{...bloo,guard:false,swing:0},onion:onion && {...onion},
       titan:titan && {...titan,balls:titan.balls.map(ball=>({...ball}))},
       muffin:muffin && {...muffin,sprinkles:muffin.sprinkles.map(drop => ({...drop}))},
-      enemies:enemies.map(enemy => ({...enemy})),climb:climb && {...climb},bowCooldown,tearsCooldown,onionThrow,tearCloud}};
+      enemies:enemies.map(enemy => ({...enemy})),climb:climb && {...climb},bowCooldown}};
   try {
     localStorage.setItem(accountsKey,JSON.stringify({activeGame,games}));
     return true;
@@ -769,9 +762,7 @@ function loadGame(id) {
   if (world && ['counter','floor','fridge','boss','oven','muffin','pantry','titan'].includes(world.area) &&
       (world.area !== 'muffin' || world.muffin) && (world.area !== 'boss' || world.onion)) {
     const newEnemies = enemies;
-    ({area,bloo,onion,enemies,climb,bowCooldown,tearsCooldown} = world);
-    onionThrow = world.onionThrow ? {...world.onionThrow} : null;
-    tearCloud = world.tearCloud ? {...world.tearCloud} : null;
+    ({area,bloo,onion,enemies,climb,bowCooldown} = world);
     bloo = {...bloo,daggerFollowup:0};
     enemies = enemies.filter(enemy => enemy.area !== 'counter').map(enemy => ({...enemy}));
     if (area === 'counter' && !climb && !canMove(bloo.x,bloo.y)) Object.assign(bloo,{x:177,y:466});
@@ -1063,18 +1054,6 @@ function updateBowButton() {
 function useGadget(pointer = swordPointer, repeating = false, direction = null) {
   const id = equipped.gadget;
   if (!id || !bloo.hp || climb || inventory.open || shop.open || down('KeyF')) return;
-  if (id === 'onionTears') {
-    if (tearsCooldown > 0) {
-      if (!repeating) say('ONION Tears laddar: ' + Math.ceil(tearsCooldown) + ' s');
-      return;
-    }
-    const aim = direction ?? swordDirection(pointer);
-    onionThrow = {area,x:bloo.x,y:bloo.y,vx:aim.x,vy:aim.y,
-      remaining:Math.min(175,aim.distance ?? 175)};
-    tearsCooldown = 12;
-    say('Bloo kastade ONION Tears!');
-    return;
-  }
   if (bowCooldown > 0) return;
   const aim = direction ?? swordDirection(pointer);
   const gadget = catalog[id];
@@ -1402,7 +1381,6 @@ function update(dt) {
       pea.y = pea.homeY;
       pea.cooldown = .6;
       pea.flash = 0;
-      pea.confused = 0;
       pea.secondChunk = false;
     }
   }
@@ -1413,7 +1391,6 @@ function update(dt) {
     bloo.hp = Math.min(maxHP,bloo.hp+healTime*regenPerSecond+1e-9);
     showHealth();
   }
-  tearsCooldown = Math.max(0,tearsCooldown-dt);
   bloo.speedBoost = Math.max(0,bloo.speedBoost-dt);
   bloo.swing = Math.max(0,bloo.swing-dt);
   bloo.weaponDelay = Math.max(0,(bloo.weaponDelay ?? 0)-dt);
@@ -1601,7 +1578,6 @@ function update(dt) {
     else say((pea.cookie ? 'Cookie' : pea.egg ? 'Egg' : 'Pea') + ' tog '+arrow.damage+' skada!');
     return false;
   });
-  updateOnionThrow(dt);
   if (area === 'boss') updatePoison(dt,onion,damage=>hitOnion(damage,bloo.x,bloo.y,true));
   if (area === 'muffin') updatePoison(dt,muffin,damage=>hitMuffin(damage,false,true));
   if (area === 'titan') updatePoison(dt,titan,damage=>damageTitan(damage/.6,false));
@@ -1627,44 +1603,11 @@ function hitOnion(damage,x,y,reflected = false) {
     say('ONION LORD är besegrad! OVEN till vänster om kylen är öppen!');
   } else say((multiplier === 2 ? 'Ryggträff! ' : 'ONION LORD: ') + damage*multiplier + ' skada');
 }
-const tearRadius = 76;
-function updateOnionThrow(dt) {
-  if (tearCloud) {
-    tearCloud.time -= dt;
-    if (tearCloud.time <= 0 || tearCloud.area !== area) tearCloud = null;
-  }
-  if (!onionThrow) return;
-  const shot = onionThrow;
-  if (shot.area !== area) {
-    onionThrow = null;
-    return;
-  }
-  const step = Math.min(shot.remaining,245*dt);
-  const x = shot.x+shot.vx*step, y = shot.y+shot.vy*step;
-  const clear = canMove(x,y);
-  if (clear) {
-    shot.x = x;
-    shot.y = y;
-    shot.remaining -= step;
-  }
-  const targets = area === 'boss' ? [onion] : enemies.filter(enemy => enemy.area === area);
-  const hit = targets.some(enemy => enemy.hp && Math.hypot(enemy.x-shot.x,enemy.y-shot.y) < 16);
-  if (clear && shot.remaining > 0 && !hit) return;
-  tearCloud = {area,x:shot.x,y:shot.y,time:4};
-  for (const enemy of targets) {
-    if (enemy.hp && Math.hypot(enemy.x-shot.x,enemy.y-shot.y) <= tearRadius) enemy.confused = 4;
-  }
-  onionThrow = null;
-  say('ONION Tears! Fiender nära nedslaget ser suddigt i 4 sekunder.');
-}
 function enemyAim(enemy) {
-  const {x,y,confused} = enemy;
-  const offset = confused > 0 ? 29*Math.sin(confused*5+x*.035) : 0;
-  return {x:bloo.x-x+offset,y:bloo.y-y+offset*.75};
+  return {x:bloo.x-enemy.x,y:bloo.y-enemy.y};
 }
 function updateOnion(dt) {
   if (!onion.hp) return;
-  onion.confused = Math.max(0,(onion.confused ?? 0)-dt);
   onion.fog = Math.max(0,onion.fog-dt);
   onion.impact = Math.max(0,onion.impact-dt);
   onion.cry -= dt;
@@ -1866,7 +1809,6 @@ function updateTitan(dt) {
 function updateEnemies(dt) {
   for (const pea of enemies) {
     if (pea.area !== area || !pea.hp) continue;
-    pea.confused = Math.max(0,(pea.confused ?? 0)-dt);
     pea.flash = Math.max(0,pea.flash-dt);
     pea.cooldown = Math.max(0,pea.cooldown-dt);
     const {x:dx,y:dy} = enemyAim(pea);
@@ -2158,17 +2100,6 @@ function drawFloor() {
 }
 
 function drawEnemies() {
-  if (tearCloud?.area === area) {
-    const {x,y} = tearCloud;
-    oval('#e2cc8a46',x,y,tearRadius,tearRadius);
-    for (const [dx,dy] of [[-25,12],[17,-18],[28,22]]) oval('#f8e7b96a',x+dx,y+dy,23,12);
-  }
-  if (onionThrow?.area === area) {
-    const {x,y} = onionThrow;
-    oval('#75503a',x,y,7,7);
-    oval('#ecbe76',x-1,y-1,5,5);
-    box('#a47040',x-1,y-9,3,4);
-  }
   const nearby = nearbyChest();
   for (const chest of chests) {
     if (chest.area !== area) continue;
