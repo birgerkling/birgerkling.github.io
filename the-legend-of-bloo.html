@@ -1943,15 +1943,16 @@ function drawBloo() {
   }
   if (jacket === 'assassin') {
     box('#5c327e',x-14,y+1,28,8);
-    const leafRows = [[8,4],[3,9],[-1,13],[-4,15],[-7,16],[-8,15],[-8,12],[-7,8]];
+    const leafRows = [[11,3],[7,7],[3,11],[0,13],[-2,14],[-4,13],[-4,10],[-4,7]];
     leafRows.forEach(([left,width],row) => {
-      box('#293a2d',x+left-1,y-23+row,width+2,3);
+      box('#293a2d',x+left-1,y-20+row,width+2,3);
     });
     leafRows.forEach(([left,width],row) => {
-      box(row<4 ? '#a9cf64' : '#678f43',x+left,y-22+row,width,1);
+      box(row<4 ? '#a9cf64' : '#678f43',x+left,y-19+row,width,1);
     });
-    for (let i=0;i<6;i++) box('#d2e99a',x-5+i*2,y-15-i,2,1);
-    box('#485d35',x-7,y-14,3,2);
+    for (let i=0;i<6;i++) box('#d2e99a',x-3+i*2,y-12-i,2,1);
+    box('#485d35',x-5,y-13,3,4);
+    box('#8faf5b',x-4,y-12,1,2);
   }
   if (jacket) {
     const [edge,base,shine] = armorSets[jacket].colors;
