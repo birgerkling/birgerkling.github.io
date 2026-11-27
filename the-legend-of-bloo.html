@@ -19,7 +19,16 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 .slot.equipped{border-color:#d9ae71;color:#fff0cd;background:#4a3559}.slot b{font-size:17px}
 .potion-slots{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:400px){.inventory-layout{grid-template-columns:1fr 1fr}.inventory-items{grid-column:1/-1}}
-#shop{max-height:calc(100dvh - 24px)}.shop-stock{display:grid;gap:6px;margin-bottom:12px}.shop-stock button{text-align:left}.shop-stock button[data-stock-status]{opacity:1;background:#21192e;border-color:#483a56;text-indent:0;color:#b9adc6!important}.shop-stock button[data-stock-status]::before{filter:saturate(.72) brightness(.88)}.shop-stock button[data-stock-status]::after{content:attr(data-stock-status);display:block;font-size:.85em;margin-top:3px}.shop-stock small{display:block;font-weight:400}.slot button{font-size:11px;padding:3px}
+#shop{width:min(720px,calc(100% - 24px));max-height:calc(100dvh - 24px)}
+#shop .shop-actions{display:block}
+#shop .shop-stock{grid-template-columns:repeat(2,minmax(0,1fr))}
+#shop .shop-stock button{min-width:0;overflow-wrap:anywhere}
+#shop .shop-stock .item-preview::before{margin-right:5px}
+#shop-pagination,#shop-footer{display:flex;align-items:center;gap:7px}
+#shop-footer{justify-content:space-between}
+#shop-page{font-size:.85rem;white-space:nowrap}
+@media(max-width:440px){#shop{padding:10px}#shop .shop-stock button{font-size:11px;padding:5px}#shop .shop-stock .item-preview::before{float:none;margin:0 auto 2px}}
+.shop-stock{display:grid;gap:6px;margin-bottom:12px}.shop-stock button{text-align:left}.shop-stock button[data-stock-status]{opacity:1;background:#21192e;border-color:#483a56;text-indent:0;color:#b9adc6!important}.shop-stock button[data-stock-status]::before{filter:saturate(.72) brightness(.88)}.shop-stock button[data-stock-status]::after{content:attr(data-stock-status);display:block;font-size:.85em;margin-top:3px}.shop-stock small{display:block;font-weight:400}.slot button{font-size:11px;padding:3px}
 #bow-fire{grid-column:1/-1}
 #accounts{max-height:calc(100dvh - 24px)}#saved-games button[aria-current="true"]{border-color:#f2c782}
 #discard-confirm{padding:8px 12px;margin:8px 0;border:1px solid #c28c91;background:#492e47}#discard-confirm p{margin:0 0 7px}.item-slots .slot{gap:3px}.discard-item{color:#ffd4d6}
@@ -83,7 +92,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
   <p id="shop-countdown"></p><p id="shop-empty" hidden>Inga varor i det här sortimentet.</p><p id="shop-message" aria-live="polite">Hej Bloo! Vad vill du köpa?</p>
   <div class="shop-actions">
     <div class="shop-stock"><button data-buy="bow">Bow · 12 Seeds<small>6 skada per pil · 1 sekund mellan skotten</small></button><button data-buy="steel">Steel Sword · 16 Seeds<small>12 skada</small></button><button data-buy="axe">Battle Axe · 30 Seeds<small>25 skada · Efter Onion Lord</small></button><button data-buy="morning">Morning Star · 45 Seeds<small>30 skada · Efter Mega Muffin</small></button><button data-buy="daggers">Twin Daggers · 60 Seeds<small>Två hugg med 12 skada vardera · Efter pastabossen</small></button><button data-buy="iron">Iron Shield · 14 Seeds<small>80 % skydd</small></button><button data-buy="tower">Tower Shield · 28 Seeds<small>80 % skydd · Efter Onion Lord</small></button><button data-buy="spiked">Spiked Shield · 45 Seeds<small>70 % skydd · 30 % tillbaka till angriparen · Efter Mega Muffin</small></button><button data-buy="platinum">Platinum Shield · 65 Seeds<small>100 % skydd · Efter pastabossen</small></button><button data-buy="leatherUpper">Leather Armor · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="leatherLower">Leather Pants · 10 Seeds<small>10 % skadereducering</small></button><button data-buy="chainUpper">Chainmail Armor · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="chainLower">Chainmail Pants · 24 Seeds<small>15 % skadereducering · +10 % fart · Efter Onion Lord</small></button><button data-buy="ironUpper">Iron Armor · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="ironLower">Iron Pants · 38 Seeds<small>20 % skadereducering · 25 % mot närstrid · Efter Mega Muffin</small></button><button data-buy="platinumUpper">Platinum Armor · 55 Seeds<small>35 % skadereducering · Efter Spaghetti Titan</small></button><button data-buy="platinumLower">Platinum Pants · 55 Seeds<small>35 % skadereducering · Efter Spaghetti Titan</small></button><button data-buy="potion">Small Healing Potion · 15 Seeds<small>Återställer upp till 20 HP</small></button><button data-buy="speedPotion">Speed Potion · 7 Seeds<small>+50 % fart i 8 sekunder</small></button></div>
-    <form method="dialog"><button>Stäng</button></form>
+    <div id="shop-footer"><form method="dialog"><button>Stäng</button></form><nav id="shop-pagination" aria-label="Butikssidor" hidden><button type="button" id="shop-prev" aria-label="Föregående sida">←</button><span id="shop-page" aria-live="polite"></span><button type="button" id="shop-next" aria-label="Nästa sida">→</button></nav></div>
   </div>
 </dialog>
 </main>
@@ -572,6 +581,14 @@ function canBuy(id) {
 const shopCountdown = document.querySelector('#shop-countdown');
 const shopEmpty = document.querySelector('#shop-empty');
 let displayedStockCycle = null;
+let shopPage = 0;
+const shopPagination = document.querySelector('#shop-pagination');
+const shopPageLabel = document.querySelector('#shop-page');
+const shopPrev = document.querySelector('#shop-prev');
+const shopNext = document.querySelector('#shop-next');
+shopPrev.addEventListener('click',()=>{shopPage--;refreshShop();});
+shopNext.addEventListener('click',()=>{shopPage++;refreshShop();});
+window.addEventListener('resize',()=>{if (shop.open) refreshShop();});
 function shopStockCycle(building,now) {
   return Math.floor((now-building.restockSecond*1000)/60000);
 }
@@ -600,11 +617,21 @@ function refreshShop(building = shopNearby(), now = Date.now()) {
   displayedStockCycle = shopStockCycle(building,now);
   const available = availableShopItems(building,displayedStockCycle);
   shopEmpty.hidden = available.length > 0;
+  const category = [...shopCatalogButtons].filter(button=>building.slots.includes(catalog[button.dataset.buy].slot));
+  const rowHeight = window.innerWidth <= 440 ? 120 : 88;
+  const pageSize = 2*Math.max(1,Math.floor(((window.visualViewport?.height ?? window.innerHeight)-240)/rowHeight));
+  const pageCount = Math.max(1,Math.ceil(category.length/pageSize));
+  shopPage = Math.max(0,Math.min(shopPage,pageCount-1));
+  const visible = category.slice(shopPage*pageSize,(shopPage+1)*pageSize);
+  shopPagination.hidden = pageCount === 1;
+  shopPageLabel.textContent = (shopPage+1)+' / '+pageCount;
+  shopPrev.disabled = shopPage === 0;
+  shopNext.disabled = shopPage >= pageCount-1;
   for (const button of shopCatalogButtons) {
     const id = button.dataset.buy;
     const item = catalog[id];
     const inStock = available.includes(id);
-    button.hidden = !building.slots.includes(item.slot);
+    button.hidden = !visible.includes(button);
     button.disabled = button.hidden || !inStock || !canBuy(id);
     const stockStatus = owned.includes(id) ? 'Redan ägd' :
       !offeredItems.has(id) ? 'Säljs inte här' :
@@ -629,6 +656,7 @@ function openShop() {
   clearInputs();
   document.querySelector('#shop-title').textContent = shopNearby().label ?? '🫐 Blåbärsbutiken';
   shopMessage.textContent = 'Du har ' + seeds + ' Seeds. Items: ' + storedItems().length + '/' + itemSlots.length + '.';
+  shopPage = 0;
   refreshShop();
   updateShopClock();
   shop.showModal();
