@@ -214,7 +214,19 @@ function markRarity(element,id) {
   element.append(label);
 }
 const stock = document.querySelectorAll('[data-buy]');
-for (const button of stock) markRarity(button,button.dataset.buy);
+const offeredItems = new Set([...stock].map(button=>button.dataset.buy));
+const shopStockList = document.querySelector('#shop .shop-stock');
+for (const [id,item] of Object.entries(catalog)) {
+  if (offeredItems.has(id)) continue;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.dataset.buy = id;
+  button.textContent = item.name;
+  button.disabled = true;
+  shopStockList.append(button);
+}
+const shopCatalogButtons = shopStockList.querySelectorAll('[data-buy]');
+for (const button of shopCatalogButtons) markRarity(button,button.dataset.buy);
 const itemSlots = document.querySelectorAll('.item-slots .slot');
 const potionSlots = document.querySelectorAll('[data-drink]');
 const storePotionButtons = document.querySelectorAll('[data-store-potion]');
@@ -588,16 +600,18 @@ function refreshShop(building = shopNearby(), now = Date.now()) {
   displayedStockCycle = shopStockCycle(building,now);
   const available = availableShopItems(building,displayedStockCycle);
   shopEmpty.hidden = available.length > 0;
-  for (const button of stock) {
+  for (const button of shopCatalogButtons) {
     const id = button.dataset.buy;
     const item = catalog[id];
     const inStock = available.includes(id);
     button.hidden = !building.slots.includes(item.slot);
     button.disabled = button.hidden || !inStock || !canBuy(id);
-    const stockStatus = !weaponUnlocked(id) ? item.gate : !inStock ? 'Ej i lager' : '';
+    const stockStatus = owned.includes(id) ? 'Redan ägd' :
+      !offeredItems.has(id) ? 'Säljs inte här' :
+      !weaponUnlocked(id) ? item.gate : !inStock ? 'Ej i lager' : '';
     if (stockStatus && !button.hidden) button.dataset.stockStatus = stockStatus;
     else delete button.dataset.stockStatus;
-    button.title = stockStatus || (owned.includes(id) ? 'Redan ägd' : bagFull() ? 'Items är fullt' : seeds < item.cost ? 'För få Seeds' : '');
+    button.title = stockStatus || (bagFull() ? 'Items är fullt' : seeds < item.cost ? 'För få Seeds' : '');
   }
 }
 function updateShopClock() {
