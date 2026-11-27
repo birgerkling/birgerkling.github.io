@@ -18,7 +18,7 @@ dialog{width:min(350px,calc(100% - 24px));padding:18px;border:2px solid #ab87c7;
 .slot.equipped{border-color:#d9ae71;color:#fff0cd;background:#4a3559}.slot b{font-size:17px}
 .potion-slots{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:400px){.inventory-layout{grid-template-columns:1fr 1fr}.inventory-items{grid-column:1/-1}}
-#shop{max-height:calc(100dvh - 24px)}.shop-stock{display:grid;gap:6px;margin-bottom:12px}.shop-stock button{text-align:left}.shop-stock small{display:block;font-weight:400}.slot button{font-size:11px;padding:3px}
+#shop{max-height:calc(100dvh - 24px)}.shop-stock{display:grid;gap:6px;margin-bottom:12px}.shop-stock button{text-align:left}.shop-stock button[data-stock-status]{opacity:.38}.shop-stock button[data-stock-status]::after{content:attr(data-stock-status);display:block;font-size:.85em;margin-top:3px}.shop-stock small{display:block;font-weight:400}.slot button{font-size:11px;padding:3px}
 #bow-fire{grid-column:1/-1}
 #accounts{max-height:calc(100dvh - 24px)}#saved-games button[aria-current="true"]{border-color:#f2c782}
 #discard-confirm{padding:8px 12px;margin:8px 0;border:1px solid #c28c91;background:#492e47}#discard-confirm p{margin:0 0 7px}.item-slots .slot{gap:3px}.discard-item{color:#ffd4d6}
@@ -582,9 +582,14 @@ function refreshShop(building = shopNearby(), now = Date.now()) {
   shopEmpty.hidden = available.length > 0;
   for (const button of stock) {
     const id = button.dataset.buy;
-    button.hidden = !available.includes(id);
-    button.disabled = button.hidden || !canBuy(id);
-    button.title = owned.includes(id) ? 'Redan ägd' : bagFull() ? 'Items är fullt' : seeds < catalog[id].cost ? 'För få Seeds' : '';
+    const item = catalog[id];
+    const inStock = available.includes(id);
+    button.hidden = !building.slots.includes(item.slot);
+    button.disabled = button.hidden || !inStock || !canBuy(id);
+    const stockStatus = !weaponUnlocked(id) ? item.gate : !inStock ? 'Ej i lager' : '';
+    if (stockStatus && !button.hidden) button.dataset.stockStatus = stockStatus;
+    else delete button.dataset.stockStatus;
+    button.title = stockStatus || (owned.includes(id) ? 'Redan ägd' : bagFull() ? 'Items är fullt' : seeds < item.cost ? 'För få Seeds' : '');
   }
 }
 function updateShopClock() {
